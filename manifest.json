@@ -1,0 +1,9 @@
+{
+  "name": "BetterBreakerBox",
+  "version_number": "1.0.0",
+  "website_url": "",
+  "description": "Add functionality to the BreakerBox",
+  "dependencies": [
+    "BepInEx-BepInExPack-5.4.2100"
+  ]
+}
