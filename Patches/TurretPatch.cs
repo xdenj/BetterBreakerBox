@@ -1,44 +1,44 @@
 ﻿using HarmonyLib;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace BetterBreakerBox.Patches
 {
     [HarmonyPatch(typeof(Turret))]
     internal class TurretPatch
     {
+        private static MethodInfo switchTurretModeMethod = null;
+        private static readonly object[] berserkParameter = new object[] { 3 };
+
+
         [HarmonyPatch(nameof(Turret.Update))]
         [HarmonyPrefix]
         static bool UpdatePatch(Turret __instance)
         {
+            // If the turret shouldn't be armed, prevent the Update method from executing.
             if (!BetterBreakerBox.ArmTurret)
             {
                 return false;
             }
 
+            // Attempt to retrieve the method only if switchTurretModeMethod is null; otherwise, reuse the existing MethodInfo.
+            switchTurretModeMethod ??= typeof(Turret).GetMethod("SwitchTurretMode", BindingFlags.Instance | BindingFlags.NonPublic);
+
+            // If BerserkTurret flag is set, try to invoke the SwitchTurretMode method with a parameter of 3.
             if (BetterBreakerBox.BerserkTurret)
             {
-                MethodInfo switchTurretModeMethod = typeof(Turret).GetMethod("SwitchTurretMode", BindingFlags.Instance | BindingFlags.NonPublic);
-
                 if (switchTurretModeMethod != null)
                 {
-                    // Specify the parameters for the method
-                    object[] parameters = [3]; // Setting the mode to 3
-
-                    // Invoke the method on the instance of Turret
-                    switchTurretModeMethod.Invoke(__instance, parameters);
+                    // Invoke the method on the instance of Turret.
+                    switchTurretModeMethod.Invoke(__instance, berserkParameter);
                 }
                 else
                 {
-                    // Method not found, handle accordingly
-                    BetterBreakerBox.Instance.logger.LogError("SwitchTurretMode method not found!");
+                    // If the method is not found, log an error.
+                    BetterBreakerBox.logger.LogWarning("SwitchTurretMode() method not found! Not setting berserk mode!");
                 }
-
             }
+
+            // Always allow the original Update method to execute after applying our custom logic.
             return true;
         }
     }

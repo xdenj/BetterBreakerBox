@@ -56,9 +56,12 @@
     <PropertyGroup>
       <TimeStamp>$([System.DateTime]::Now.ToString("yyyyMMddHHmmss"))</TimeStamp>
     </PropertyGroup>
-    
-    <!-- Define the name of the output zip file, prefixed with 'den-' -->
-    <PropertyGroup>
+
+    <!-- Define the name of the output zip file, include -DEBUG suffix for Debug builds -->
+    <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+      <OutputZipFileName>$(Authors)-$(AssemblyName)-$(Version)-DEBUG-$(TimeStamp).zip</OutputZipFileName>
+    </PropertyGroup>
+    <PropertyGroup Condition=" '$(Configuration)' != 'Debug' ">
       <OutputZipFileName>$(Authors)-$(AssemblyName)-$(Version)-$(TimeStamp).zip</OutputZipFileName>
     </PropertyGroup>
     
@@ -71,11 +74,14 @@
 
   <!-- Adjusted to include only the MeltdownChance.dll and specific additional files -->
   <ItemGroup>
-    <ContentToPack Include="$(OutputPath)$(AssemblyName).dll" />
+    <ContentToPack Include="$(OutputPath)BetterBreakerBox.dll" />
     <ContentToPack Include="$(ProjectDir)README.md" />
     <ContentToPack Include="$(ProjectDir)CHANGELOG.md" />
     <ContentToPack Include="$(ProjectDir)manifest.json" />
     <ContentToPack Include="$(ProjectDir)icon.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Release\" />
   </ItemGroup>
   
   </Project>

@@ -1,16 +1,33 @@
 ﻿using HarmonyLib;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
+using Unity.Netcode;
+using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace BetterBreakerBox.Patches
 {
     [HarmonyPatch(typeof(StartOfRound))]
     internal class StartOfRoundPatch
     {
+        [HarmonyPatch(nameof(StartOfRound.Start))]
+        [HarmonyPostfix]
+        public static void OnSessionStart(StartOfRound __instance)
+        {
+            if (!__instance.IsOwner) return;
+            try
+            {
+                var BetterBreakerBoxManager = Object.Instantiate(BetterBreakerBox.BetterBreakerBoxManagerPrefab, __instance.transform);
+                BetterBreakerBoxManager.hideFlags = HideFlags.None;
+                BetterBreakerBoxManager.GetComponent<NetworkObject>().Spawn();
+            }
+            catch (Exception e)
+            {
+                BetterBreakerBox.logger.LogError($"Failed to spawn BetterBreakerBoxBehaviour:\n{e}");
+            }
+
+        }
+
+
         [HarmonyPatch(nameof(StartOfRound.Update))]
         [HarmonyPostfix]
         static void UpdatePatch(StartOfRound __instance)
@@ -35,31 +52,21 @@ namespace BetterBreakerBox.Patches
 
             if (BetterBreakerBox.LastState != switchesTurnedOn)
             {
-                switch (switchesTurnedOn)
+                if (BetterBreakerBox.GetSwitchActionMap()?.TryGetValue(switchesTurnedOn, out SwitchAction action) == true)
                 {
-                    case "00001":
-                        BetterBreakerBox.Instance.DisarmTurrets();
-                        HUDManager.Instance.DisplayTip("Information", "Turrets disarmed!", false, false, "LC_Tip1");
-                        break;
-
-                    case "00010":
-                        BetterBreakerBox.Instance.BerserkTurrets();
-                        HUDManager.Instance.DisplayTip("Warning!", "Tampering detected, setting Turrets to berserk mode!", true, false, "LC_Tip1");
-                        break;
-
-                    case "00011":
-                        BetterBreakerBox.Instance.ShipLeave();
-                        HUDManager.Instance.DisplayTip("Warning!", "Something something, the ship is leaving", true, false, "LC_Tip1");
-                        break;
-
-                    default:
-                        HUDManager.Instance.DisplayTip("Switch states updated!", switchesTurnedOn, false, false, "LC_Tip1");
-                        break;
+                    action.Invoke();
                 }
+
                 BetterBreakerBox.LastState = switchesTurnedOn;
             }
         }
 
+        [HarmonyPatch(nameof(StartOfRound.OnShipLandedMiscEvents))]
+        [HarmonyPrefix]
+        static void OnShipLandedMiscEventsPatch()
+        {
+            BetterBreakerBox.Instance.RandomizeActions();
+        }
 
 
         [HarmonyPatch(nameof(StartOfRound.ShipHasLeft))]
@@ -67,9 +74,7 @@ namespace BetterBreakerBox.Patches
         static void ShipHasLeftPatch()
         {
             BetterBreakerBox.ResetBetterBreakerBox();
-            BetterBreakerBox.Instance.logger.LogInfo("Ship has left, resetting.");
+            BetterBreakerBox.logger.LogInfo("Ship has left, resetting.");
         }
-
-
     }
 }
