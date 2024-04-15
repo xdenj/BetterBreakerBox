@@ -11,8 +11,9 @@ namespace BetterBreakerBox.Patches
     {
         [HarmonyPatch(nameof(StartOfRound.Start))]
         [HarmonyPostfix]
-        public static void OnSessionStart(StartOfRound __instance)
+        public static void StartPatch(StartOfRound __instance)
         {
+            BetterBreakerBox.isHost = GameNetworkManager.Instance.isHostingGame;
             if (!__instance.IsOwner) return;
             try
             {
@@ -24,9 +25,7 @@ namespace BetterBreakerBox.Patches
             {
                 BetterBreakerBox.logger.LogError($"Failed to spawn BetterBreakerBoxBehaviour:\n{e}");
             }
-
         }
-
 
         [HarmonyPatch(nameof(StartOfRound.Update))]
         [HarmonyPostfix]
@@ -34,40 +33,44 @@ namespace BetterBreakerBox.Patches
         {
             if (!BetterBreakerBox.StatesSet)
             {
+                //don't do anything if switches' states haven been read once yet
                 return;
-
             }
 
             if (BetterBreakerBox.LeaveShip)
             {
+                //check if flag has been set by the LeaveShip action to trigger the ship leaving early
                 StartOfRound.Instance.ShipLeave();
             }
 
-            string switchesTurnedOn = "";
-            for (int i = 0; i < BetterBreakerBox.SwitchStates.Length; i++)
+            if (BetterBreakerBox.isHost)
             {
-                switchesTurnedOn += BetterBreakerBox.SwitchStates[i] ? "1" : "0";
-            }
-
-
-            if (BetterBreakerBox.LastState != switchesTurnedOn)
-            {
-                if (BetterBreakerBox.GetSwitchActionMap()?.TryGetValue(switchesTurnedOn, out SwitchAction action) == true)
+                if (BetterBreakerBox.LastState != BetterBreakerBox.SwitchesTurnedOn)
                 {
-                    action.Invoke();
+                    //check if the state of the switches has changed since last Update()
+                    if (BetterBreakerBox.GetSwitchActionMap()?.TryGetValue(BetterBreakerBox.SwitchesTurnedOn, out ActionDefinition actionDef) == true)
+                    {
+                        // Display action messages before invoking the action
+                        BetterBreakerBoxBehaviour.Instance?.DisplayActionMessageClientRpc(actionDef.HeaderText, actionDef.BodyText, actionDef.IsWarning);
+                        // Now, invoke the action
+                        actionDef.Action.Invoke();
+                    }
+                    //keep track of current state of the switches
+                    BetterBreakerBox.LastState = BetterBreakerBox.SwitchesTurnedOn;
                 }
-
-                BetterBreakerBox.LastState = switchesTurnedOn;
             }
+
         }
 
         [HarmonyPatch(nameof(StartOfRound.OnShipLandedMiscEvents))]
         [HarmonyPrefix]
         static void OnShipLandedMiscEventsPatch()
         {
-            BetterBreakerBox.Instance.RandomizeActions();
+            if (BetterBreakerBox.isHost)
+            {
+                BetterBreakerBox.Instance.RandomizeActions();
+            }
         }
-
 
         [HarmonyPatch(nameof(StartOfRound.ShipHasLeft))]
         [HarmonyPrefix]

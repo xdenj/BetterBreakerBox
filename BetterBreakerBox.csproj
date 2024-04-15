@@ -3,7 +3,7 @@
   <!-- Project Properties -->
   <PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework>
-    <AssemblyName>betterbreakerbox</AssemblyName>
+    <AssemblyName>den.betterbreakerbox</AssemblyName>
     <Product>BetterBreakerBox</Product>
     <Authors>den</Authors>
     <Version>1.0.0</Version>
@@ -59,10 +59,10 @@
 
     <!-- Define the name of the output zip file, include -DEBUG suffix for Debug builds -->
     <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
-      <OutputZipFileName>$(Authors)-$(AssemblyName)-$(Version)-DEBUG-$(TimeStamp).zip</OutputZipFileName>
+      <OutputZipFileName>$(AssemblyName)-$(Version)-DEBUG-$(TimeStamp).zip</OutputZipFileName>
     </PropertyGroup>
     <PropertyGroup Condition=" '$(Configuration)' != 'Debug' ">
-      <OutputZipFileName>$(Authors)-$(AssemblyName)-$(Version)-$(TimeStamp).zip</OutputZipFileName>
+      <OutputZipFileName>$(AssemblyName)-$(Version)-$(TimeStamp).zip</OutputZipFileName>
     </PropertyGroup>
     
     <!-- Zip the contents of the Publish directory -->
@@ -74,7 +74,7 @@
 
   <!-- Adjusted to include only the MeltdownChance.dll and specific additional files -->
   <ItemGroup>
-    <ContentToPack Include="$(OutputPath)BetterBreakerBox.dll" />
+    <ContentToPack Include="$(OutputPath)$(AssemblyName).dll" />
     <ContentToPack Include="$(ProjectDir)README.md" />
     <ContentToPack Include="$(ProjectDir)CHANGELOG.md" />
     <ContentToPack Include="$(ProjectDir)manifest.json" />

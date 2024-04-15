@@ -1,74 +1,64 @@
 ﻿using BepInEx;
-using BepInEx.Configuration;
 using BepInEx.Logging;
+using BetterBreakerBox.Configs;
 using BetterBreakerBox.Patches;
 using HarmonyLib;
 using System;
 using System.Collections.Generic;
+#if DEBUG
+using System.IO;
+#endif
 using System.Linq;
 using System.Reflection;
+using System.Text;
 using UnityEngine;
-using UnityEngine.UIElements;
 
 namespace BetterBreakerBox
 {
-    [BepInPlugin(MODGUID, MODNAME, MODVERSION)]
+    [BepInPlugin(MyPluginInfo.PLUGIN_GUID, MyPluginInfo.PLUGIN_NAME, MyPluginInfo.PLUGIN_VERSION)]
     public class BetterBreakerBox : BaseUnityPlugin
     {
-        private const string MODGUID = "den.BetterBreakerBox";
-        private const string MODNAME = "BetterBreakerBox";
-        private const string MODVERSION = "1.0.0";
+        internal static BetterBreakerBox? Instance;
+        public static new BetterBreakerBoxConfig MyConfig { get; internal set; }
+        private readonly Harmony harmony = new(MyPluginInfo.PLUGIN_GUID);
+        internal static ManualLogSource logger = BepInEx.Logging.Logger.CreateLogSource(MyPluginInfo.PLUGIN_GUID);
 
-        private readonly Harmony harmony = new(MODGUID);
+        public static GameObject BetterBreakerBoxManagerPrefab = null!;
+        private List<ActionDefinition> actionsDefinitions = new List<ActionDefinition>();
+        internal Dictionary<string, ActionDefinition> switchActionMap = new Dictionary<string, ActionDefinition>();
 
-        internal static ManualLogSource logger = BepInEx.Logging.Logger.CreateLogSource(BetterBreakerBox.MODGUID);
-
+        //flags and other stuff
+        public static bool isHost;
         public static bool[] SwitchStates = new bool[5];
+        public static string SwitchesTurnedOn = "";
         public static bool StatesSet = false;
         public static string LastState = "";
-
-        //config:
-        private ConfigEntry<int> weightDisarmTurrets;
-        private ConfigEntry<int> weightBerserkTurrets;
-        private ConfigEntry<int> weightShipLeave;
-        private ConfigEntry<int> weightDoNothing;
-
-        private ConfigEntry<bool> disarmTurretsOnce;
-        private ConfigEntry<bool> berserkTurretsOnce;
-        private ConfigEntry<bool> shipLeaveOnce;
-        private ConfigEntry<bool> doNothingOnce;
-
-
-        //flags:
+        
+        // action flags:
         public static bool ArmTurret = true;
         public static bool BerserkTurret = false;
         public static bool LeaveShip = false;
 
-        internal static BetterBreakerBox? Instance;
-        public static GameObject BetterBreakerBoxManagerPrefab = null!;
-        private List<ActionDefinition> actionsDefinitions = new List<ActionDefinition>();
-        private Dictionary<string, SwitchAction> switchActionMap = new Dictionary<string, SwitchAction>();
+ 
 
-        public static Dictionary<string, SwitchAction> GetSwitchActionMap()
+        public static Dictionary<string, ActionDefinition> GetSwitchActionMap()
         {
             return Instance?.switchActionMap;
         }
 
         void Awake()
-        {
+        {            
             if (Instance == null) Instance = this;
             else return;
-            BindConfigs();
-            PopulateActions();
-            //RandomizeActions();
+            MyConfig = new(base.Config);
 
+            PopulateActions();
             NetcodePatcher();
             InitializePrefabs();
 
-            logger.LogInfo($"{MODGUID}-{MODVERSION} has been loaded!");
+            logger.LogInfo($"{MyPluginInfo.PLUGIN_GUID}-{MyPluginInfo.PLUGIN_VERSION} has been loaded!");
             ApplyPatches();
         }
-
 
         private void InitializePrefabs()
         {
@@ -93,53 +83,6 @@ namespace BetterBreakerBox
                 }
             }
         }
-
-
-        internal void BindConfigs()
-        {
-            string descDisarmTurrets = "disarming Turrets in the facility";
-            string descBerserkTurrets = "making Turrets enter berserk mode";
-            string descShipLeave = "making the Ship leave early";
-            string descDoNothing = "having no action";
-
-            //weights:
-            string weightPreDesc = "Adjusts the probability that a switch combination will trigger the action of";
-            string weightPostDesc = "Higher weights make this action more likely to be assigned to one of the switch combinations.";
-
-            weightDisarmTurrets = Config.Bind(
-                "Weights",
-                "weightDisarmTurrets",
-                1,
-                $"{weightPreDesc} {descDisarmTurrets}. {weightPostDesc}");
-
-            weightBerserkTurrets = Config.Bind(
-               "Weights",
-               "weightBerserkTurrets",
-               1,
-               $"{weightPreDesc} {descBerserkTurrets}. {weightPostDesc}");
-
-            weightShipLeave = Config.Bind(
-                "Weights",
-                "weightShipLeave",
-                1,
-                $"{weightPreDesc} {descShipLeave}. {weightPostDesc}");
-
-            weightDoNothing = Config.Bind(
-                "Weights",
-                "weightDoNothing",
-                10,
-                $"{weightPreDesc} {descDoNothing}. {weightPostDesc}");
-
-            //run once:
-            string oncePreDesc = "Select if the action of";
-            string oncePostDesc = "should only be assigned to a single combination of Switches";
-
-            disarmTurretsOnce = Config.Bind("Limit", "disarmTurretsOnce", false, $"{oncePreDesc} {descDisarmTurrets} {oncePostDesc}");
-            berserkTurretsOnce = Config.Bind("Limit", "berserkTurretsOnce", false, $"{oncePreDesc} {descBerserkTurrets} {oncePostDesc}");
-            shipLeaveOnce = Config.Bind("Limit", "shipLeaveOnce", false, $"{oncePreDesc} {descShipLeave} {oncePostDesc}");
-            doNothingOnce = Config.Bind("Limit", "doNothingOnce", false, $"{oncePreDesc} {descDoNothing} {oncePostDesc}");
-        }
-
 
         internal void ApplyPatches()
         {
@@ -188,11 +131,11 @@ namespace BetterBreakerBox
 
         private void PopulateActions()
         {
-            //actionsDefinitions.Add(new ActionDefinition(method, int:weight , bool:assignOnce));
-            actionsDefinitions.Add(new ActionDefinition(DisarmTurrets, weightDisarmTurrets.Value, disarmTurretsOnce.Value));
-            actionsDefinitions.Add(new ActionDefinition(BerserkTurrets, weightBerserkTurrets.Value, berserkTurretsOnce.Value));
-            actionsDefinitions.Add(new ActionDefinition(ShipLeave, weightShipLeave.Value, shipLeaveOnce.Value));
-            actionsDefinitions.Add(new ActionDefinition(DoNothing, weightDoNothing.Value, doNothingOnce.Value));
+            //actionsDefinitions.Add(new ActionDefinition(SwitchAction action, int weight, bool assignOnce, string headerText, string bodyText, bool isWarning);
+            actionsDefinitions.Add(new ActionDefinition(DisarmTurrets, BetterBreakerBoxConfig.weightDisarmTurrets.Value, BetterBreakerBoxConfig.disarmTurretsOnce.Value, "Information", "Turrets disarmed!", false));
+            actionsDefinitions.Add(new ActionDefinition(BerserkTurrets, BetterBreakerBoxConfig.weightBerserkTurrets.Value, BetterBreakerBoxConfig.berserkTurretsOnce.Value, "Warning!", "Tampering detected, setting Turrets to berserk mode!", true));
+            actionsDefinitions.Add(new ActionDefinition(ShipLeave, BetterBreakerBoxConfig.weightShipLeave.Value, BetterBreakerBoxConfig.shipLeaveOnce.Value, "Alert!", "Electromagnetic anomaly detected! Extraction vessel departing ahead of schedule.", true));
+            actionsDefinitions.Add(new ActionDefinition(DoNothing, BetterBreakerBoxConfig.weightDoNothing.Value, BetterBreakerBoxConfig.doNothingOnce.Value, "LOL", "We're doing nothing", false));
             // Add other actions here...
         }
 
@@ -224,7 +167,7 @@ namespace BetterBreakerBox
                 var selectedAction = weightedActions.FirstOrDefault(wa => wa.cumulativeWeight >= randomValue).action;
 
                 // Assign the action to the current combination
-                switchActionMap[binaryKey] = selectedAction.Action;
+                switchActionMap[binaryKey] = selectedAction;
 
                 // If the action should only be assigned once, remove it from the list
                 if (selectedAction.AssignOnce)
@@ -243,57 +186,75 @@ namespace BetterBreakerBox
             }
 
 #if DEBUG
-            DialogueSegment[] dialogue = new DialogueSegment[32];
-            int j = 0;
-            logger.LogDebug("Actions have been randomly assigned to combinations: ");
-            foreach (var entry in switchActionMap)
-            {
-                // Get the key
-                string key = entry.Key;
-                // Get the delegate (method name)
-                string methodName = entry.Value?.Method.Name ?? "null";
-                if (methodName != null && key != null)
-                {
-                    // Log the key and the method name to the game's console
-                    logger.LogDebug($"State: {key}, Action: {methodName}");
-                    dialogue[j] = new DialogueSegment
-                    {
-                        bodyText = key,
-                        speakerText = methodName
-                    };
+            //DEBUG Display of Actions mapped to switch combos and write them to a text file for persistent viewing
+            var groupedByMethodName = switchActionMap
+                .Where(entry => entry.Value != null)
+                .GroupBy(
+                    entry => entry.Value.Action.Method.Name,
+                    entry => entry.Key,
+                    (methodName, keys) => new { MethodName = methodName, Keys = keys });
 
-                }
-                j++;
+            List<DialogueSegment> dialogueList = new List<DialogueSegment>();
+            // Use BepInEx's API to get the path to your plugin's directory
+            string pluginDirectory = Paths.PluginPath; // This gives you the 'BepInEx/plugins' path
+
+            // If you want it specifically in a folder named after your plugin, append your plugin's name
+            string specificPluginPath = Path.Combine(pluginDirectory, MyPluginInfo.PLUGIN_NAME);
+            Directory.CreateDirectory(specificPluginPath); // Ensure your plugin's directory exists
+
+            // Define the file path within your specific plugin directory
+            string filePath = Path.Combine(specificPluginPath, "swiches.txt");
+
+            // Use a StringBuilder to accumulate all the text to write it at once
+            StringBuilder fileContent = new StringBuilder();
+
+            foreach (var group in groupedByMethodName)
+            {
+                string keysCombined = string.Join(", ", group.Keys); // Combines the keys into a comma-separated list
+                dialogueList.Add(new DialogueSegment
+                {
+                    bodyText = keysCombined,
+                    speakerText = group.MethodName
+                });
+                // Prepare content for the file
+                fileContent.AppendLine($"{group.MethodName}: {keysCombined}");
             }
+
+            DialogueSegment[] dialogue = dialogueList.ToArray();
             HUDManager.Instance.ReadDialogue(dialogue);
+
+            // Write to the file, overwriting any existing content
+            File.WriteAllText(filePath, fileContent.ToString());
 #endif
         }
 
+        public static void DisplayActionMessage(string headerText, string bodyText, bool isWarning)
+        {
+            HUDManager.Instance.DisplayTip(headerText, bodyText, isWarning);
+        }
 
         //Actions:
         public void DisarmTurrets()
         {
             ResetActions();
-            HUDManager.Instance.DisplayTip("Information", "Turrets disarmed!", false, false, "LC_Tip1");
             ArmTurret = false;
         }
 
         public void BerserkTurrets()
         {
             ResetActions();
-            HUDManager.Instance.DisplayTip("Warning!", "Tampering detected, setting Turrets to berserk mode!", true, false, "LC_Tip1");
             BerserkTurret = true;
 
         }
         public void ShipLeave()
         {
+            // TODO: implement a timer before ship leaves
             ResetActions();
-            HUDManager.Instance.DisplayTip("Alert!", "Electromagnetic anomaly detected! Extraction vessel departing ahead of schedule.", true, false, "LC_Tip1");
             LeaveShip = true;
         }
         public void DoNothing()
         {
-            HUDManager.Instance.DisplayTip("LOL", "We're doing nothing", false, false, "LC_Tip1");
+            ResetActions();        
         }
 
         //TODO: Implement remaining actions
@@ -353,15 +314,20 @@ namespace BetterBreakerBox
     public class ActionDefinition
     {
         public SwitchAction Action { get; set; }
-        public string Name { get; set; } // Name of the action for display purposes
         public int Weight { get; set; }
         public bool AssignOnce { get; set; }
+        public string HeaderText { get; set; }
+        public string BodyText { get; set; }
+        public bool IsWarning { get; set; }
 
-        public ActionDefinition(SwitchAction action, int weight, bool assignOnce)
+        public ActionDefinition(SwitchAction action, int weight, bool assignOnce, string headerText, string bodyText, bool isWarning)
         {
             Action = action;
             Weight = weight;
             AssignOnce = assignOnce;
+            HeaderText = headerText;
+            BodyText = bodyText;
+            IsWarning = isWarning;
         }
     }
 

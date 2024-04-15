@@ -6,13 +6,12 @@ namespace BetterBreakerBox
     {
         public static BetterBreakerBoxBehaviour? Instance { get; private set; }
 
-        //public bool IsMeltdown
-        //{
-        //    get => _isMeltdown.Value;
-        //    internal set => _isMeltdown.Value = value;
-        //}
-        //private readonly NetworkVariable<bool> _isMeltdown = new() { Value = false, };
 
+        [ClientRpc]
+        public void DisplayActionMessageClientRpc(string headerText, string bodyText, bool isWarning)
+        {
+            BetterBreakerBox.DisplayActionMessage(headerText, bodyText, isWarning);
+        }
 
         public override void OnNetworkSpawn()
         {
