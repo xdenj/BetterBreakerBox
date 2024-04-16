@@ -14,6 +14,11 @@ namespace BetterBreakerBox.Configs
         public static ConfigEntry<bool> shipLeaveOnce;
         public static ConfigEntry<bool> doNothingOnce;
 
+        public static ConfigEntry<int> disarmTurretsTimer;
+        public static ConfigEntry<int> berserkTurretsTimer;
+        public static ConfigEntry<int> shipLeaveTimer;
+
+
         public BetterBreakerBoxConfig(ConfigFile cfg)
         {
             string descDisarmTurrets = "disarming Turrets in the facility";
@@ -21,9 +26,10 @@ namespace BetterBreakerBox.Configs
             string descShipLeave = "making the Ship leave early";
             string descDoNothing = "having no action";
             string weightPreDesc = "Adjusts the probability that a switch combination will trigger the action of";
-            string weightPostDesc = "Higher weights make this action more likely to be assigned to one of the switch combinations.";
+            string weightPostDesc = "Higher weights make this action more likely to be assigned to one of the switch combinations, a weight of 0 will prevent the action from being assigned.";
             string oncePreDesc = "Select if the action of";
-            string oncePostDesc = "should only be assigned to a single combination of Switches";
+            string oncePostDesc = "should only be able to be assigned to one switch combination, regardless of the weight assigned to it.";
+
 
             //weights
             weightDisarmTurrets = cfg.Bind("Weights", "weightDisarmTurrets", 1, $"{weightPreDesc} {descDisarmTurrets}. {weightPostDesc}");
@@ -36,6 +42,11 @@ namespace BetterBreakerBox.Configs
             berserkTurretsOnce = cfg.Bind("Limit", "berserkTurretsOnce", false, $"{oncePreDesc} {descBerserkTurrets} {oncePostDesc}");
             shipLeaveOnce = cfg.Bind("Limit", "shipLeaveOnce", false, $"{oncePreDesc} {descShipLeave} {oncePostDesc}");
             doNothingOnce = cfg.Bind("Limit", "doNothingOnce", false, $"{oncePreDesc} {descDoNothing} {oncePostDesc}");
+
+            //timers
+            disarmTurretsTimer = cfg.Bind("Timers", "disarmTurretsTimer", 10, "Time in seconds before Turrets are re-armed after being disarmed");
+            berserkTurretsTimer = cfg.Bind("Timers", "berserkTurretsTimer", 10, "Time in seconds before Turrets exit berserk mode");
+            shipLeaveTimer = cfg.Bind("Timers", "shipLeaveTimer", 10, "Time in seconds before the Ship leaves after being triggered to leave early");
         }
     }
 }

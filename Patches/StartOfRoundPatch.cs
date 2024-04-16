@@ -37,19 +37,17 @@ namespace BetterBreakerBox.Patches
                 return;
             }
 
-            if (BetterBreakerBox.LeaveShip)
-            {
-                //check if flag has been set by the LeaveShip action to trigger the ship leaving early
-                StartOfRound.Instance.ShipLeave();
-            }
-
             if (BetterBreakerBox.isHost)
             {
+                //check if the action lock is set
+                if (BetterBreakerBox.ActionLock) return;
                 if (BetterBreakerBox.LastState != BetterBreakerBox.SwitchesTurnedOn)
                 {
                     //check if the state of the switches has changed since last Update()
                     if (BetterBreakerBox.GetSwitchActionMap()?.TryGetValue(BetterBreakerBox.SwitchesTurnedOn, out ActionDefinition actionDef) == true)
                     {
+                        //Set Lock flag to prevent an action from being triggered while another action is in progress
+                        BetterBreakerBox.ActionLock = true;
                         // Display action messages before invoking the action
                         BetterBreakerBoxBehaviour.Instance?.DisplayActionMessageClientRpc(actionDef.HeaderText, actionDef.BodyText, actionDef.IsWarning);
                         // Now, invoke the action
@@ -68,6 +66,7 @@ namespace BetterBreakerBox.Patches
         {
             if (BetterBreakerBox.isHost)
             {
+                
                 BetterBreakerBox.Instance.RandomizeActions();
             }
         }

@@ -15,7 +15,7 @@ namespace BetterBreakerBox.Patches
         static bool UpdatePatch(Turret __instance)
         {
             // If the turret shouldn't be armed, prevent the Update method from executing.
-            if (!BetterBreakerBox.ArmTurret)
+            if (BetterBreakerBox.DisarmTurrets)
             {
                 return false;
             }
@@ -24,7 +24,7 @@ namespace BetterBreakerBox.Patches
             switchTurretModeMethod ??= typeof(Turret).GetMethod("SwitchTurretMode", BindingFlags.Instance | BindingFlags.NonPublic);
 
             // If BerserkTurret flag is set, try to invoke the SwitchTurretMode method with a parameter of 3.
-            if (BetterBreakerBox.BerserkTurret)
+            if (BetterBreakerBox.BerserkTurrets)
             {
                 if (switchTurretModeMethod != null)
                 {

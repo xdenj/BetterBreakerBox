@@ -33,13 +33,14 @@ namespace BetterBreakerBox
         public static string SwitchesTurnedOn = "";
         public static bool StatesSet = false;
         public static string LastState = "";
-        
+        public static bool ActionLock = false;
+
         // action flags:
-        public static bool ArmTurret = true;
-        public static bool BerserkTurret = false;
+        public static bool DisarmTurrets = false;
+        public static bool BerserkTurrets = false;
         public static bool LeaveShip = false;
 
- 
+
 
         public static Dictionary<string, ActionDefinition> GetSwitchActionMap()
         {
@@ -47,7 +48,7 @@ namespace BetterBreakerBox
         }
 
         void Awake()
-        {            
+        {
             if (Instance == null) Instance = this;
             else return;
             MyConfig = new(base.Config);
@@ -115,8 +116,8 @@ namespace BetterBreakerBox
 
         internal static void ResetActions()
         {
-            ArmTurret = true;
-            BerserkTurret = false;
+            DisarmTurrets = false;
+            BerserkTurrets = false;
             LeaveShip = false;
         }
 
@@ -132,9 +133,9 @@ namespace BetterBreakerBox
         private void PopulateActions()
         {
             //actionsDefinitions.Add(new ActionDefinition(SwitchAction action, int weight, bool assignOnce, string headerText, string bodyText, bool isWarning);
-            actionsDefinitions.Add(new ActionDefinition(DisarmTurrets, BetterBreakerBoxConfig.weightDisarmTurrets.Value, BetterBreakerBoxConfig.disarmTurretsOnce.Value, "Information", "Turrets disarmed!", false));
-            actionsDefinitions.Add(new ActionDefinition(BerserkTurrets, BetterBreakerBoxConfig.weightBerserkTurrets.Value, BetterBreakerBoxConfig.berserkTurretsOnce.Value, "Warning!", "Tampering detected, setting Turrets to berserk mode!", true));
-            actionsDefinitions.Add(new ActionDefinition(ShipLeave, BetterBreakerBoxConfig.weightShipLeave.Value, BetterBreakerBoxConfig.shipLeaveOnce.Value, "Alert!", "Electromagnetic anomaly detected! Extraction vessel departing ahead of schedule.", true));
+            actionsDefinitions.Add(new ActionDefinition(TurretsDisarm, BetterBreakerBoxConfig.weightDisarmTurrets.Value, BetterBreakerBoxConfig.disarmTurretsOnce.Value, "<color=red>Critical power loss!</color>", "Turrets temporarily disarmed.", false));
+            actionsDefinitions.Add(new ActionDefinition(TurretsBerserk, BetterBreakerBoxConfig.weightBerserkTurrets.Value, BetterBreakerBoxConfig.berserkTurretsOnce.Value, "<color=red>Security breach detected!", "Activating Turret berserk mode for enhanced Facility protection!", true));
+            actionsDefinitions.Add(new ActionDefinition(ShipLeave, BetterBreakerBoxConfig.weightShipLeave.Value, BetterBreakerBoxConfig.shipLeaveOnce.Value, "Electromagnetic anomaly!", "The Company strongly advises all Employees to evacuate to the Autopilot Ship immediately!", true));
             actionsDefinitions.Add(new ActionDefinition(DoNothing, BetterBreakerBoxConfig.weightDoNothing.Value, BetterBreakerBoxConfig.doNothingOnce.Value, "LOL", "We're doing nothing", false));
             // Add other actions here...
         }
@@ -203,7 +204,7 @@ namespace BetterBreakerBox
             Directory.CreateDirectory(specificPluginPath); // Ensure your plugin's directory exists
 
             // Define the file path within your specific plugin directory
-            string filePath = Path.Combine(specificPluginPath, "swiches.txt");
+            string filePath = Path.Combine(specificPluginPath, "switches.txt");
 
             // Use a StringBuilder to accumulate all the text to write it at once
             StringBuilder fileContent = new StringBuilder();
@@ -233,28 +234,55 @@ namespace BetterBreakerBox
             HUDManager.Instance.DisplayTip(headerText, bodyText, isWarning);
         }
 
-        //Actions:
-        public void DisarmTurrets()
+        public static void DisplayTimer(string name, float timeLeft, float totalTime)
         {
-            ResetActions();
-            ArmTurret = false;
+            int minutes = (int)timeLeft / 60;
+            int seconds = (int)timeLeft % 60;
+            float percentageLeft = (timeLeft / totalTime) * 100;
+
+            string color = GetColorForPercentage(percentageLeft);  // Use a helper method for determining the color
+
+            string bodyText = $"<color={color}>{minutes:00}:{seconds:00}</color>";
+
+            DialogueSegment[] dialogue = new[] {
+        new DialogueSegment {
+            bodyText = bodyText,
+            speakerText = name,
+            waitTime = 1f  // Directly setting waitTime here for brevity
+        }
+    };
+
+            HUDManager.Instance.ReadDialogue(dialogue);
         }
 
-        public void BerserkTurrets()
+        private static string GetColorForPercentage(float percentage)
+        {
+            if (percentage < 25) return "red";
+            if (percentage < 50) return "yellow";
+            return "green";
+        }
+
+        //Actions:
+        public void TurretsDisarm()
         {
             ResetActions();
-            BerserkTurret = true;
+            DisarmTurrets = true;
+        }
+
+        public void TurretsBerserk()
+        {
+            ResetActions();
+            BerserkTurrets = true;
 
         }
         public void ShipLeave()
         {
-            // TODO: implement a timer before ship leaves
             ResetActions();
             LeaveShip = true;
         }
         public void DoNothing()
         {
-            ResetActions();        
+            ResetActions();
         }
 
         //TODO: Implement remaining actions

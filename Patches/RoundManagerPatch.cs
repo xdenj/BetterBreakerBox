@@ -10,7 +10,7 @@ namespace BetterBreakerBox.Patches
         [HarmonyPrefix]
         static bool SwitchPowerPatch(RoundManager __instance)
         {
-            //disabling game's defautl behaviour of switching off the facility's power after a certain # of switches have been interacted with
+            //disabling game's default behaviour of switching off the facility's power after a certain # of switches have been interacted with
             return false;
         }
     }
