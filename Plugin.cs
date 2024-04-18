@@ -40,7 +40,6 @@ namespace BetterBreakerBox
         public static bool DisarmTurrets = false;
         public static bool BerserkTurrets = false;
         public static bool LeaveShip = false;
-        public static bool EnableCharge = false;
 
 
 
@@ -139,6 +138,7 @@ namespace BetterBreakerBox
             actionsDefinitions.Add(new ActionDefinition(TurretsBerserk, BetterBreakerBoxConfig.weightBerserkTurrets.Value, BetterBreakerBoxConfig.berserkTurretsOnce.Value, "<color=red>Security breach detected!", "Activating Turret berserk mode for enhanced Facility protection!", true));
             actionsDefinitions.Add(new ActionDefinition(ShipLeave, BetterBreakerBoxConfig.weightShipLeave.Value, BetterBreakerBoxConfig.shipLeaveOnce.Value, "Electromagnetic anomaly!", "The Company strongly advises all Employees to evacuate to the Autopilot Ship immediately!", true));
             actionsDefinitions.Add(new ActionDefinition(DoNothing, BetterBreakerBoxConfig.weightDoNothing.Value, BetterBreakerBoxConfig.doNothingOnce.Value, "LOL", "We're doing nothing", false));
+            actionsDefinitions.Add(new ActionDefinition(ChargeEnable, BetterBreakerBoxConfig.weightEnableCharge.Value, BetterBreakerBoxConfig.enableChargeOnce.Value, "<color=blue>Charging enabled!</color>", "Battery-powered items can now be charged at the Breaker Box.", false));
             // Add other actions here...
         }
 
@@ -247,14 +247,15 @@ namespace BetterBreakerBox
             string bodyText = $"<color={color}>{minutes:00}:{seconds:00}</color>";
 
             DialogueSegment[] dialogue = new[] {
-        new DialogueSegment {
-            bodyText = bodyText,
-            speakerText = name,
-            waitTime = 1f  // Directly setting waitTime here for brevity
-        }
-    };
+                new DialogueSegment {
+                    bodyText = bodyText,
+                    speakerText = name,
+                    waitTime = 1f  // Directly setting waitTime here for brevity
+                }
+            };
 
             HUDManager.Instance.ReadDialogue(dialogue);
+            //HUDManager.Instance.DisplayGlobalNotification(bodyText);
         }
 
         private static string GetColorForPercentage(float percentage)
@@ -285,6 +286,7 @@ namespace BetterBreakerBox
         public void DoNothing()
         {
             ResetActions();
+            ActionLock = false;
         }
 
         //TODO: Implement remaining actions
@@ -296,8 +298,20 @@ namespace BetterBreakerBox
         public void ChargeEnable()
         {
             ResetActions();
-            EnableCharge = true;
-
+            BreakerBox[] breakerBoxes = FindObjectsOfType<BreakerBox>();
+            for (int i = 0; i < breakerBoxes.Length; i++)
+            {
+                BreakerBox radarBooster = breakerBoxes[i];
+                if (radarBooster.GetComponent<ChargingManager>() == null)
+                {
+                    radarBooster.gameObject.AddComponent<ChargingManager>();
+                } else
+                {
+                    BetterBreakerBoxManager.Instance.DisplayActionMessageClientRpc("Information", "Charging is already enabled.", false);
+                }
+                
+            }
+            ActionLock = false;
         }
 
         public void Zap()
