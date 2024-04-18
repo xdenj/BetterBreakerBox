@@ -1,10 +1,21 @@
-﻿using HarmonyLib;
+﻿using BetterBreakerBox.Behaviours;
+using HarmonyLib;
 
 namespace BetterBreakerBox.Patches
 {
     [HarmonyPatch(typeof(BreakerBox))]
     internal class BreakerBoxPatch
     {
+        [HarmonyPatch(nameof(BreakerBox.Start))]
+        [HarmonyPostfix]
+        static void StartPatch(BreakerBox __instance)
+        {
+            if (__instance.gameObject.GetComponent<ChargingManager>() == null)
+            {
+                __instance.gameObject.AddComponent<ChargingManager>();
+            }
+        }
+
         [HarmonyPatch(nameof(BreakerBox.SwitchBreaker))]
         [HarmonyPostfix]
         static void SwitchBreakerPatch(BreakerBox __instance)

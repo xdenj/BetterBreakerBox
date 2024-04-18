@@ -3,6 +3,7 @@ using System;
 using Unity.Netcode;
 using UnityEngine;
 using Object = UnityEngine.Object;
+using BetterBreakerBox.Behaviours;
 
 namespace BetterBreakerBox.Patches
 {
@@ -23,7 +24,7 @@ namespace BetterBreakerBox.Patches
             }
             catch (Exception e)
             {
-                BetterBreakerBox.logger.LogError($"Failed to spawn BetterBreakerBoxBehaviour:\n{e}");
+                BetterBreakerBox.logger.LogError($"Failed to spawn BetterBreakerBoxManager:\n{e}");
             }
         }
 
@@ -49,7 +50,7 @@ namespace BetterBreakerBox.Patches
                         //Set Lock flag to prevent an action from being triggered while another action is in progress
                         BetterBreakerBox.ActionLock = true;
                         // Display action messages before invoking the action
-                        BetterBreakerBoxBehaviour.Instance?.DisplayActionMessageClientRpc(actionDef.HeaderText, actionDef.BodyText, actionDef.IsWarning);
+                        BetterBreakerBoxManager.Instance?.DisplayActionMessageClientRpc(actionDef.HeaderText, actionDef.BodyText, actionDef.IsWarning);
                         // Now, invoke the action
                         actionDef.Action.Invoke();
                     }

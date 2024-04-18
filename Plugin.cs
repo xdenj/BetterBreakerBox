@@ -1,5 +1,6 @@
 ﻿using BepInEx;
 using BepInEx.Logging;
+using BetterBreakerBox.Behaviours;
 using BetterBreakerBox.Configs;
 using BetterBreakerBox.Patches;
 using HarmonyLib;
@@ -39,6 +40,7 @@ namespace BetterBreakerBox
         public static bool DisarmTurrets = false;
         public static bool BerserkTurrets = false;
         public static bool LeaveShip = false;
+        public static bool EnableCharge = false;
 
 
 
@@ -64,7 +66,7 @@ namespace BetterBreakerBox
         private void InitializePrefabs()
         {
             BetterBreakerBoxManagerPrefab = LethalLib.Modules.NetworkPrefabs.CreateNetworkPrefab("BetterBreakerBox Manager");
-            BetterBreakerBoxManagerPrefab.AddComponent<BetterBreakerBoxBehaviour>();
+            BetterBreakerBoxManagerPrefab.AddComponent<BetterBreakerBoxManager>();
         }
 
         private static void NetcodePatcher()
@@ -291,8 +293,10 @@ namespace BetterBreakerBox
 
         }
 
-        public void EnableCharge()
+        public void ChargeEnable()
         {
+            ResetActions();
+            EnableCharge = true;
 
         }
 

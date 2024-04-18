@@ -1,13 +1,12 @@
 ﻿using BetterBreakerBox.Configs;
-using DunGen;
 using Unity.Netcode;
 using UnityEngine;
 
-namespace BetterBreakerBox
+namespace BetterBreakerBox.Behaviours
 {
-    internal class BetterBreakerBoxBehaviour : NetworkBehaviour
+    internal class BetterBreakerBoxManager : NetworkBehaviour
     {
-        public static BetterBreakerBoxBehaviour? Instance { get; private set; }
+        public static BetterBreakerBoxManager? Instance { get; private set; }
 
         internal float leaveShipTimer = BetterBreakerBoxConfig.shipLeaveTimer.Value;
         internal float disarmTurretsTimer = BetterBreakerBoxConfig.disarmTurretsTimer.Value;
@@ -31,10 +30,10 @@ namespace BetterBreakerBox
         {
             if (!BetterBreakerBox.isHost) return; //only the host should be able to trigger actions
             if (!BetterBreakerBox.LeaveShip && !BetterBreakerBox.DisarmTurrets && !BetterBreakerBox.BerserkTurrets) return; //no action to trigger
-            
+
             if (BetterBreakerBox.DisarmTurrets)
             {
-                DisplayTimerClientRpc("Time left until Turrets are re-armed: ", disarmTurretsTimer, BetterBreakerBoxConfig.disarmTurretsTimer.Value);
+                DisplayTimerClientRpc("Turrets re-arming in: ", disarmTurretsTimer, BetterBreakerBoxConfig.disarmTurretsTimer.Value);
                 disarmTurretsTimer -= Time.deltaTime; //decrement timer
                 if (disarmTurretsTimer <= 0f)
                 {
@@ -43,16 +42,16 @@ namespace BetterBreakerBox
                     BetterBreakerBox.ActionLock = false;
                     disarmTurretsTimer = BetterBreakerBoxConfig.disarmTurretsTimer.Value;
                 }
-                else if (disarmTurretsTimer <= 3f) 
+                else if (disarmTurretsTimer <= 3f)
                 {
-                    DisplayActionMessageClientRpc("<color=green>Power restored!</color>", "Turrets back online and operational.", false); 
+                    DisplayActionMessageClientRpc("<color=green>Power restored!</color>", "Turrets back online and operational.", false);
                 }
                 return;
             }
 
             if (BetterBreakerBox.BerserkTurrets)
             {
-                DisplayTimerClientRpc("Time left until Turrets exit berserk mode: ", berserkTurretsTimer, BetterBreakerBoxConfig.berserkTurretsTimer.Value);
+                DisplayTimerClientRpc("Turrets exiting Berserk mode in: ", berserkTurretsTimer, BetterBreakerBoxConfig.berserkTurretsTimer.Value);
                 berserkTurretsTimer -= Time.deltaTime;
                 if (berserkTurretsTimer <= 0f)
                 {
@@ -63,18 +62,14 @@ namespace BetterBreakerBox
                 else if (berserkTurretsTimer <= 3f)
                 {
                     DisplayActionMessageClientRpc("Information", "Threat neutralized, Turrets returning to regular operation.", false);
-                } 
+                }
                 return;
             }
 
             if (BetterBreakerBox.LeaveShip)
             {
-                DisplayTimerClientRpc("Time left until Ship departs: ", leaveShipTimer, BetterBreakerBoxConfig.shipLeaveTimer.Value);
-                BetterBreakerBox.logger.LogDebug("Leave ship timer: " + leaveShipTimer);
-
+                DisplayTimerClientRpc("Ship departs in: ", leaveShipTimer, BetterBreakerBoxConfig.shipLeaveTimer.Value);
                 leaveShipTimer -= Time.deltaTime;
-                BetterBreakerBox.logger.LogDebug("Leave ship timer: " + leaveShipTimer);
-
                 if (leaveShipTimer <= 0f)  // Move this condition up to catch when the timer first goes zero or negative
                 {
                     BetterBreakerBox.LeaveShip = false;
@@ -96,13 +91,13 @@ namespace BetterBreakerBox
             {
                 Instance = this;
             }
-            BetterBreakerBox.logger.LogInfo("Spawned BetterBreakerBoxBehaviour");
+            BetterBreakerBox.logger.LogInfo("Spawned BetterBreakerBoxManager");
             base.OnNetworkSpawn();
         }
 
         public override void OnDestroy()
         {
-            BetterBreakerBox.logger.LogInfo("Destroyed BetterBreakerBoxBehaviour");
+            BetterBreakerBox.logger.LogInfo("Destroyed BetterBreakerBoxManager");
             if (ReferenceEquals(Instance, this))
             {
                 Instance = null;
