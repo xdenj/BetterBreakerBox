@@ -1,10 +1,52 @@
 ﻿using HarmonyLib;
+using System;
+using Unity.Netcode;
+using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace BetterBreakerBox.Patches
 {
     [HarmonyPatch(typeof(RoundManager))]
     internal class RoundManagerPatch
     {
+        [HarmonyPatch(nameof(RoundManager.Start))]
+        [HarmonyPostfix]
+        static void StartPatch(RoundManager __instance)
+        {
+            BetterBreakerBox.hasRandomizedActions = false;
+            BetterBreakerBox.isHost = GameNetworkManager.Instance.isHostingGame;
+            if (!__instance.IsOwner) return;
+            try
+            {
+                var BetterBreakerBoxManager = Object.Instantiate(BetterBreakerBox.BetterBreakerBoxManagerPrefab, __instance.transform);
+                BetterBreakerBoxManager.hideFlags = HideFlags.None;
+                BetterBreakerBoxManager.GetComponent<NetworkObject>().Spawn();
+                BetterBreakerBox.logger.LogDebug("Spawned BetterBreakerBoxManager");
+            }
+            catch (Exception e)
+            {
+                BetterBreakerBox.logger.LogError($"Failed to spawn BetterBreakerBoxManager:\n{e}");
+            }
+        }
+
+        [HarmonyPatch(nameof(RoundManager.Update))]
+        [HarmonyPostfix]
+        static void UpdatePatch(RoundManager __instance)
+        {
+            if (!BetterBreakerBox.isHost) return;
+            if (TimeOfDay.Instance.daysUntilDeadline == 3 && !BetterBreakerBox.hasRandomizedActions)
+            {
+                BetterBreakerBox.Instance.RandomizeActions();//randomize actions at beginning of first day
+                BetterBreakerBox.hasRandomizedActions = true;
+                BetterBreakerBox.logger.LogDebug("Randomized actions at beginning of first day");
+            }
+            else if (TimeOfDay.Instance.daysUntilDeadline <= 0)
+            {
+                BetterBreakerBox.hasRandomizedActions = false;
+            }
+            //BetterBreakerBox.logger.LogDebug($"Is host: {BetterBreakerBox.isHost} | Days until deadline: {TimeOfDay.Instance.daysUntilDeadline} | Times Quota fulfilled: {TimeOfDay.Instance.timesFulfilledQuota}");
+        }
+
         [HarmonyPatch(nameof(RoundManager.SwitchPower))]
         [HarmonyPrefix]
         static bool SwitchPowerPatch(RoundManager __instance)

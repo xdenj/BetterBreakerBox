@@ -1,32 +1,32 @@
-﻿using HarmonyLib;
-using System;
-using Unity.Netcode;
-using UnityEngine;
-using Object = UnityEngine.Object;
-using BetterBreakerBox.Behaviours;
+﻿using BetterBreakerBox.Behaviours;
+using HarmonyLib;
 
 namespace BetterBreakerBox.Patches
 {
     [HarmonyPatch(typeof(StartOfRound))]
     internal class StartOfRoundPatch
     {
-        [HarmonyPatch(nameof(StartOfRound.Start))]
-        [HarmonyPostfix]
-        public static void StartPatch(StartOfRound __instance)
-        {
-            BetterBreakerBox.isHost = GameNetworkManager.Instance.isHostingGame;
-            if (!__instance.IsOwner) return;
-            try
-            {
-                var BetterBreakerBoxManager = Object.Instantiate(BetterBreakerBox.BetterBreakerBoxManagerPrefab, __instance.transform);
-                BetterBreakerBoxManager.hideFlags = HideFlags.None;
-                BetterBreakerBoxManager.GetComponent<NetworkObject>().Spawn();
-            }
-            catch (Exception e)
-            {
-                BetterBreakerBox.logger.LogError($"Failed to spawn BetterBreakerBoxManager:\n{e}");
-            }
-        }
+        //moved to RoundManagerPatch
+        //[HarmonyPatch(nameof(StartOfRound.Start))]
+        //[HarmonyPostfix]
+        //public static void StartPatch(StartOfRound __instance)
+        //{
+        //    BetterBreakerBox.hasRandomizedActions = false;
+        //    BetterBreakerBox.logger.LogDebug($"Time until deadine: {TimeOfDay.Instance.timeUntilDeadline}");
+        //    BetterBreakerBox.boughtThisRound = false;
+        //    //BetterBreakerBox.isHost = GameNetworkManager.Instance.isHostingGame;
+        //    if (!__instance.IsOwner) return;
+        //    try
+        //    {
+        //        var BetterBreakerBoxManager = Object.Instantiate(BetterBreakerBox.BetterBreakerBoxManagerPrefab, __instance.transform);
+        //        BetterBreakerBoxManager.hideFlags = HideFlags.None;
+        //        BetterBreakerBoxManager.GetComponent<NetworkObject>().Spawn();
+        //    }
+        //    catch (Exception e)
+        //    {
+        //        BetterBreakerBox.logger.LogError($"Failed to spawn BetterBreakerBoxManager:\n{e}");
+        //    }
+        //}
 
         [HarmonyPatch(nameof(StartOfRound.Update))]
         [HarmonyPostfix]
@@ -61,22 +61,29 @@ namespace BetterBreakerBox.Patches
 
         }
 
-        [HarmonyPatch(nameof(StartOfRound.OnShipLandedMiscEvents))]
-        [HarmonyPrefix]
-        static void OnShipLandedMiscEventsPatch()
+        [HarmonyPatch(nameof(StartOfRound.playersFiredGameOver))]
+        [HarmonyPostfix]
+        static void playersFiredGameOverPatch()
         {
-            if (BetterBreakerBox.isHost)
-            {
-                
-                BetterBreakerBox.Instance.RandomizeActions();
-            }
+            BetterBreakerBox.ResetNewRound(); //reset the flags for the new round after death
         }
+
+        //[HarmonyPatch(nameof(StartOfRound.OnShipLandedMiscEvents))]
+        //[HarmonyPrefix]
+        //static void OnShipLandedMiscEventsPatch()
+        //{
+        //    if (BetterBreakerBox.isHost)
+        //    {
+
+        //        BetterBreakerBox.Instance.RandomizeActions();
+        //    }
+        //}
 
         [HarmonyPatch(nameof(StartOfRound.ShipHasLeft))]
         [HarmonyPrefix]
         static void ShipHasLeftPatch()
         {
-            BetterBreakerBox.ResetBetterBreakerBox();
+            BetterBreakerBox.ResetNewDay();
             BetterBreakerBox.logger.LogInfo("Ship has left, resetting.");
         }
     }

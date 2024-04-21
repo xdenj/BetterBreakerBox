@@ -19,6 +19,7 @@ namespace BetterBreakerBox.Behaviours
 
         void SetupInteractTrigger(ref GameObject charger)
         {
+            PlayerControllerB localPlayer = GameNetworkManager.Instance.localPlayerController;
             InteractTrigger interactTrigger = charger.AddComponent<InteractTrigger>();
             interactTrigger.interactable = true;
             interactTrigger.holdInteraction = true;
@@ -28,6 +29,8 @@ namespace BetterBreakerBox.Behaviours
             interactTrigger.onStopInteract = new InteractEvent();
             interactTrigger.onInteract = new InteractEvent();
             interactTrigger.onInteract.AddListener(OnChargeInteract);
+            interactTrigger.hoverIcon = localPlayer.grabItemIcon;
+            interactTrigger.disabledHoverIcon = localPlayer.grabItemIcon;
             interactComponent = interactTrigger;
         }
         void Update()

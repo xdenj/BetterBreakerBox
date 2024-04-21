@@ -12,11 +12,15 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using TMPro;
 using UnityEngine;
+using TerminalApi.Classes;
+using static TerminalApi.TerminalApi;
 
 namespace BetterBreakerBox
 {
     [BepInPlugin(MyPluginInfo.PLUGIN_GUID, MyPluginInfo.PLUGIN_NAME, MyPluginInfo.PLUGIN_VERSION)]
+    [BepInDependency("atomic.terminalapi")]
     public class BetterBreakerBox : BaseUnityPlugin
     {
         internal static BetterBreakerBox? Instance;
@@ -27,14 +31,27 @@ namespace BetterBreakerBox
         public static GameObject BetterBreakerBoxManagerPrefab = null!;
         private List<ActionDefinition> actionsDefinitions = new List<ActionDefinition>();
         internal Dictionary<string, ActionDefinition> switchActionMap = new Dictionary<string, ActionDefinition>();
+        private HashSet<ActionDefinition> returnedActions = new HashSet<ActionDefinition>();
+
+
+        private static GameObject timerObject;
+        private static TextMeshProUGUI timerTextMesh;
+
 
         //flags and other stuff
         public static bool isHost;
+        public static bool hasRandomizedActions = false;
+        public static bool isTimer;
         public static bool[] SwitchStates = new bool[5];
         public static string SwitchesTurnedOn = "";
         public static bool StatesSet = false;
         public static string LastState = "";
         public static bool ActionLock = false;
+        public static bool LocalPlayerTriggered = false;
+
+        //hardcoding price of the breakerbox command
+        public static int breakerboxPrice = 50;
+
 
         // action flags:
         public static bool DisarmTurrets = false;
@@ -53,13 +70,12 @@ namespace BetterBreakerBox
             if (Instance == null) Instance = this;
             else return;
             MyConfig = new(base.Config);
-
             PopulateActions();
             NetcodePatcher();
             InitializePrefabs();
-
             logger.LogInfo($"{MyPluginInfo.PLUGIN_GUID}-{MyPluginInfo.PLUGIN_VERSION} has been loaded!");
             ApplyPatches();
+            AddCommand("breakerbox", new CommandInfo { Title = "breakerbox", Category = "other", Description = "Retrieve entries of the Facility's Handbook [50 credits]", DisplayTextSupplier = OnBreakerBoxCommand });
         }
 
         private void InitializePrefabs()
@@ -73,7 +89,6 @@ namespace BetterBreakerBox
             var types = Assembly.GetExecutingAssembly().GetTypes();
             foreach (var type in types)
             {
-
                 var methods = type.GetMethods(BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
                 foreach (var method in methods)
                 {
@@ -108,11 +123,71 @@ namespace BetterBreakerBox
             }
         }
 
-        internal static void ResetBetterBreakerBox()
+        public string OnBreakerBoxCommand()
         {
+            string output = ""; 
+            string terminalPrePreText = "<color=red>Already retrieved one entry this round.\nTry again next round!</color>\n\n";
+            string terminalPostText = "\n\n<color=red>Insufficient credits to retrieve entries from the Facility Handbook.</color>\n\n";
+            string terminalPreText =
+                "<color=blue><u>-- Facility Handbook --</u></color>\n\n" +
+                "...\n...\n\n" +
+                "Breaker Box:\n" +
+                "Initial inspection of the Facility's breaker box has revealed that the contractor who we hired did a terrible job with the electrical wiring. The breaker box is a mess, and the switches are not labeled. The Company has decided to leave the breaker box as is, and instead, has provided a list of actions that can be triggered by flipping the switches in a specific order.\n\n";
+            var terminal = FindObjectOfType<Terminal>();
+
+            if (BetterBreakerBoxManager.Instance is { } manager)
+            {
+                if (manager.hasBoughtThisRound.Value)
+                {
+                    output = terminalPrePreText + terminalPreText + manager.terminalOutputString.Value.Data;
+                }
+                else if (terminal.groupCredits < breakerboxPrice)
+                {
+                    output = terminalPreText + manager.terminalOutputString.Value.Data + terminalPostText;
+                }
+                else
+                {
+                    manager.SetHasBoughtThisRound(true);
+                    terminal.SyncGroupCreditsClientRpc(terminal.groupCredits - breakerboxPrice, terminal.numberOfItemsInDropship);
+                    manager.SetTerminalOutputString("\n" + manager.terminalOutputString.Value.Data + "\n" + "<color=orange>" + manager.terminalOutputArray.Value.Data[manager.terminalOutputIndex.Value] + "</color>") ;
+                    manager.SetTerminalOutputIndex(manager.terminalOutputIndex.Value + 1);
+                    output = terminalPreText + manager.terminalOutputString.Value.Data;
+                }
+                return output;
+            }
+            else
+            {
+                return "Error retrieving terminal output.";
+            }
+
+        }
+
+        internal static void ResetNewDay()
+        {
+            SwitchesTurnedOn = "";
             StatesSet = false;
             LastState = "";
+            ActionLock = false;
+            LocalPlayerTriggered = false;
+            if (BetterBreakerBoxManager.Instance is { } betterBreakerBoxManagerInstance)
+            {
+                betterBreakerBoxManagerInstance.SetHasBoughtThisRound(false);
+            }
             ResetActions();
+
+        }
+
+        internal static void ResetNewRound()
+        {
+            hasRandomizedActions = false;
+            if (BetterBreakerBoxManager.Instance is { } manager)
+            {
+                manager.SetTerminalOutputIndex(0);
+                manager.SetTerminalOutputArray(new string[3]);
+                manager.SetTerminalOutputString("");
+            }
+            ResetNewDay();
+
         }
 
         internal static void ResetActions()
@@ -129,8 +204,7 @@ namespace BetterBreakerBox
                 SwitchStates[index] = state;
             }
         }
-
-
+ 
         private void PopulateActions()
         {
             //actionsDefinitions.Add(new ActionDefinition(SwitchAction action, int weight, bool assignOnce, string headerText, string bodyText, bool isWarning);
@@ -139,6 +213,7 @@ namespace BetterBreakerBox
             actionsDefinitions.Add(new ActionDefinition(ShipLeave, BetterBreakerBoxConfig.weightShipLeave.Value, BetterBreakerBoxConfig.shipLeaveOnce.Value, "Electromagnetic anomaly!", "The Company strongly advises all Employees to evacuate to the Autopilot Ship immediately!", true));
             actionsDefinitions.Add(new ActionDefinition(DoNothing, BetterBreakerBoxConfig.weightDoNothing.Value, BetterBreakerBoxConfig.doNothingOnce.Value, "LOL", "We're doing nothing", false));
             actionsDefinitions.Add(new ActionDefinition(ChargeEnable, BetterBreakerBoxConfig.weightEnableCharge.Value, BetterBreakerBoxConfig.enableChargeOnce.Value, "<color=blue>Charging enabled!</color>", "Battery-powered items can now be charged at the Breaker Box.", false));
+            actionsDefinitions.Add(new ActionDefinition(Zap, BetterBreakerBoxConfig.weightZap.Value, BetterBreakerBoxConfig.zapOnce.Value, "<color=red>ZAP!</color>", "Player has been zapped!", true));
             // Add other actions here...
         }
 
@@ -198,17 +273,11 @@ namespace BetterBreakerBox
                     (methodName, keys) => new { MethodName = methodName, Keys = keys });
 
             List<DialogueSegment> dialogueList = new List<DialogueSegment>();
-            // Use BepInEx's API to get the path to your plugin's directory
-            string pluginDirectory = Paths.PluginPath; // This gives you the 'BepInEx/plugins' path
 
-            // If you want it specifically in a folder named after your plugin, append your plugin's name
+            string pluginDirectory = Paths.PluginPath;
             string specificPluginPath = Path.Combine(pluginDirectory, MyPluginInfo.PLUGIN_NAME);
-            Directory.CreateDirectory(specificPluginPath); // Ensure your plugin's directory exists
-
-            // Define the file path within your specific plugin directory
+            Directory.CreateDirectory(specificPluginPath);
             string filePath = Path.Combine(specificPluginPath, "switches.txt");
-
-            // Use a StringBuilder to accumulate all the text to write it at once
             StringBuilder fileContent = new StringBuilder();
 
             foreach (var group in groupedByMethodName)
@@ -229,6 +298,13 @@ namespace BetterBreakerBox
             // Write to the file, overwriting any existing content
             File.WriteAllText(filePath, fileContent.ToString());
 #endif
+            string[] terminalOutput = new string[3];
+            for (int i = 0; i < 3; i++)
+            {
+                terminalOutput[i] = GetRandomSwitchCombo();
+            }
+            BetterBreakerBoxManager.Instance?.SetTerminalOutputArray(terminalOutput);
+            BetterBreakerBoxManager.Instance?.SetTerminalOutputIndex(0); //reset terminalOutputIndex after randomizing actions
         }
 
         public static void DisplayActionMessage(string headerText, string bodyText, bool isWarning)
@@ -238,31 +314,53 @@ namespace BetterBreakerBox
 
         public static void DisplayTimer(string name, float timeLeft, float totalTime)
         {
+
             int minutes = (int)timeLeft / 60;
             int seconds = (int)timeLeft % 60;
             float percentageLeft = (timeLeft / totalTime) * 100;
+            Color color = GetColorForPercentage(percentageLeft);
+            if (timerObject == null)
+            {
+                BetterBreakerBoxManager.Instance.CreateTimerObjectClientRpc();
+                return;
+            }
 
-            string color = GetColorForPercentage(percentageLeft);  // Use a helper method for determining the color
-
-            string bodyText = $"<color={color}>{minutes:00}:{seconds:00}</color>";
-
-            DialogueSegment[] dialogue = new[] {
-                new DialogueSegment {
-                    bodyText = bodyText,
-                    speakerText = name,
-                    waitTime = 1f  // Directly setting waitTime here for brevity
-                }
-            };
-
-            HUDManager.Instance.ReadDialogue(dialogue);
-            //HUDManager.Instance.DisplayGlobalNotification(bodyText);
+            ((TMP_Text)timerTextMesh).text = $"{minutes:D2}:{seconds:D2}";
+            ((TMP_Text)timerTextMesh).color = color;
         }
 
-        private static string GetColorForPercentage(float percentage)
+        private static Color GetColorForPercentage(float percentage)
         {
-            if (percentage < 25) return "red";
-            if (percentage < 50) return "yellow";
-            return "green";
+            if (percentage < 25) return Color.red;
+            if (percentage < 50) return Color.yellow;
+            return Color.green;
+        }
+
+        public string GetRandomSwitchCombo()
+        {
+            // Filter out DoNothing and already returned actions
+            var filteredActions = switchActionMap
+                .Where(pair => pair.Value.Action.Method.Name != "DoNothing" && !returnedActions.Contains(pair.Value))
+                .ToList();
+
+            if (filteredActions.Count == 0)
+                return "All actions have been returned.";
+
+            // Get a random action from the filtered list
+            var random = new System.Random();
+            var randomAction = filteredActions[random.Next(filteredActions.Count)].Value;
+
+            // Add this action to the set of returned actions
+            returnedActions.Add(randomAction);
+
+            // Gather all switch combinations for this action
+            var combinations = switchActionMap
+                .Where(pair => pair.Value == randomAction)
+                .Select(pair => pair.Key)
+                .ToList();
+
+            // Return the formatted string
+            return $"{randomAction.Action.Method.Name}: {string.Join(", ", combinations)}";
         }
 
         //Actions:
@@ -305,18 +403,21 @@ namespace BetterBreakerBox
                 if (radarBooster.GetComponent<ChargingManager>() == null)
                 {
                     radarBooster.gameObject.AddComponent<ChargingManager>();
-                } else
+                }
+                else
                 {
                     BetterBreakerBoxManager.Instance.DisplayActionMessageClientRpc("Information", "Charging is already enabled.", false);
                 }
-                
+
             }
             ActionLock = false;
         }
 
-        public void Zap()
+        public static void Zap()
         {
-
+            ResetActions();
+            BetterBreakerBoxManager.Instance.ZapClientRpc();
+            ActionLock = false;
         }
 
         public void StealthMines()
@@ -354,7 +455,38 @@ namespace BetterBreakerBox
 
         }
 
+        public static bool CreateTimerObject()
+        {
+            GameObject val = GameObject.Find("/Systems/UI/Canvas/IngamePlayerHUD/TopRightCorner/ControlTip1");
+            if (!val)
+            {
+                logger.LogError("Could not find ControlTip1");
+                return false;
+            }
+            GameObject val2 = GameObject.Find("/Systems/UI/Canvas/IngamePlayerHUD/TopRightCorner/ControlTip2");
+            if (!val2)
+            {
+                logger.LogError("Could not find ControlTip2");
+                return false;
+            }
+            timerObject = GameObject.Instantiate<GameObject>(val.gameObject, val.transform.parent, false);
+            timerObject.name = "BBB Timer";
+            float num = val.transform.position.y - val2.transform.position.y;
+            timerObject.transform.Translate(0f, num, 0f);
+            timerTextMesh = timerObject.GetComponentInChildren<TextMeshProUGUI>();
+            logger.LogDebug("BBB Timer created");
+            return true;
+        }
 
+        public static void DestroyTimerObject()
+        {
+            if (timerObject)
+            {
+                GameObject.Destroy(timerObject);
+                timerObject = null;
+                timerTextMesh = null;
+            }
+        }
     }
 
     public class ActionDefinition
@@ -376,6 +508,8 @@ namespace BetterBreakerBox
             IsWarning = isWarning;
         }
     }
+
+
 
     public delegate void SwitchAction();
 

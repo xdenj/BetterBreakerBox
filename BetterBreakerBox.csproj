@@ -37,7 +37,11 @@
   <ItemGroup Condition="'$(TargetFramework.TrimEnd(`0123456789`))' == 'net'">
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.2" PrivateAssets="all" />
   </ItemGroup>
-
+  <ItemGroup>
+    <Reference Include="TerminalApi">
+      <HintPath>..\..\ref\NotAtomicBomb-TerminalApi\BepInEx\plugins\TerminalApi.dll</HintPath>
+    </Reference>
+  </ItemGroup>
   <Target Name="NetcodePatch" AfterTargets="PostBuildEvent">
     <Exec Command="netcode-patch &quot;$(TargetPath)&quot; @(ReferencePathWithRefAssemblies->'&quot;%(Identity)&quot;', ' ')" />
   </Target>

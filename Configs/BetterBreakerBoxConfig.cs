@@ -9,12 +9,14 @@ namespace BetterBreakerBox.Configs
         public static ConfigEntry<int> weightShipLeave;
         public static ConfigEntry<int> weightDoNothing;
         public static ConfigEntry<int> weightEnableCharge;
+        public static ConfigEntry<int> weightZap;
 
         public static ConfigEntry<bool> disarmTurretsOnce;
         public static ConfigEntry<bool> berserkTurretsOnce;
         public static ConfigEntry<bool> shipLeaveOnce;
         public static ConfigEntry<bool> doNothingOnce;
         public static ConfigEntry<bool> enableChargeOnce;
+        public static ConfigEntry<bool> zapOnce;
 
         public static ConfigEntry<int> disarmTurretsTimer;
         public static ConfigEntry<int> berserkTurretsTimer;
@@ -28,6 +30,7 @@ namespace BetterBreakerBox.Configs
             string descShipLeave = "making the Ship leave early";
             string descDoNothing = "having no action";
             string descEnableCharge = "enabling charging battery-powered items on the breaker box";
+            string descZap = "zapping the player with a small amount of damage";
             string weightPreDesc = "Adjusts the probability that a switch combination will trigger the action of";
             string weightPostDesc = "Higher weights make this action more likely to be assigned to one of the switch combinations, a weight of 0 will prevent the action from being assigned.";
             string oncePreDesc = "Select if the action of";
@@ -40,6 +43,7 @@ namespace BetterBreakerBox.Configs
             weightShipLeave = cfg.Bind("Weights", "weightShipLeave", 1, $"{weightPreDesc} {descShipLeave}. {weightPostDesc}");
             weightDoNothing = cfg.Bind("Weights", "weightDoNothing", 10, $"{weightPreDesc} {descDoNothing}. {weightPostDesc}");
             weightEnableCharge = cfg.Bind("Weights", "weightEnableCharge", 1, $"{weightPreDesc} {descEnableCharge}. {weightPostDesc}");
+            weightZap = cfg.Bind("Weights", "weightZap", 1, $"{weightPreDesc} {descZap}. {weightPostDesc}");
 
             //limit
             disarmTurretsOnce = cfg.Bind("Limit", "disarmTurretsOnce", false, $"{oncePreDesc} {descDisarmTurrets} {oncePostDesc}");
@@ -47,6 +51,7 @@ namespace BetterBreakerBox.Configs
             shipLeaveOnce = cfg.Bind("Limit", "shipLeaveOnce", false, $"{oncePreDesc} {descShipLeave} {oncePostDesc}");
             doNothingOnce = cfg.Bind("Limit", "doNothingOnce", false, $"{oncePreDesc} {descDoNothing} {oncePostDesc}");
             enableChargeOnce = cfg.Bind("Limit", "enableChargeOnce", false, $"{oncePreDesc} {descEnableCharge} {oncePostDesc}");
+            zapOnce = cfg.Bind("Limit", "zapOnce", false, $"{oncePreDesc} {descZap} {oncePostDesc}");
 
             //timers
             disarmTurretsTimer = cfg.Bind("Timers", "disarmTurretsTimer", 10, "Time in seconds before Turrets are re-armed after being disarmed");

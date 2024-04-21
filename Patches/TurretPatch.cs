@@ -9,7 +9,6 @@ namespace BetterBreakerBox.Patches
         private static MethodInfo switchTurretModeMethod = null;
         private static readonly object[] berserkParameter = new object[] { 3 };
 
-
         [HarmonyPatch(nameof(Turret.Update))]
         [HarmonyPrefix]
         static bool UpdatePatch(Turret __instance)
@@ -19,7 +18,6 @@ namespace BetterBreakerBox.Patches
             {
                 return false;
             }
-
             // Attempt to retrieve the method only if switchTurretModeMethod is null; otherwise, reuse the existing MethodInfo.
             switchTurretModeMethod ??= typeof(Turret).GetMethod("SwitchTurretMode", BindingFlags.Instance | BindingFlags.NonPublic);
 
@@ -37,7 +35,6 @@ namespace BetterBreakerBox.Patches
                     BetterBreakerBox.logger.LogWarning("SwitchTurretMode() method not found! Not setting berserk mode!");
                 }
             }
-
             // Always allow the original Update method to execute after applying our custom logic.
             return true;
         }

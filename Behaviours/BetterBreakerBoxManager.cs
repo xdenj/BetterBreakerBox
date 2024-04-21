@@ -1,4 +1,6 @@
 ﻿using BetterBreakerBox.Configs;
+using GameNetcodeStuff;
+using System;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -12,6 +14,55 @@ namespace BetterBreakerBox.Behaviours
         internal float disarmTurretsTimer = BetterBreakerBoxConfig.disarmTurretsTimer.Value;
         internal float berserkTurretsTimer = BetterBreakerBoxConfig.berserkTurretsTimer.Value;
 
+        public NetworkVariable<StringArrayWrapper> terminalOutputArray = new NetworkVariable<StringArrayWrapper>(new StringArrayWrapper());
+        public NetworkVariable<int> terminalOutputIndex = new NetworkVariable<int>();
+        public NetworkVariable<StringWrapper> terminalOutputString = new NetworkVariable<StringWrapper>(new StringWrapper(""));
+
+        public NetworkVariable<bool> hasBoughtThisRound = new NetworkVariable<bool>();
+
+        public void SetTerminalOutputArray(string[] output)
+        {
+            if (!BetterBreakerBox.isHost)
+            {
+                SetTerminalOutputArrayServerRpc(new StringArrayWrapper(output));
+                return;
+            }
+            terminalOutputArray.Value = new StringArrayWrapper(output);
+        }
+
+        public string[] GetTerminalOutput()
+        {
+            return terminalOutputArray.Value.Data;
+        }
+
+        public void SetTerminalOutputIndex(int value)
+        {
+            if (!BetterBreakerBox.isHost)
+            {
+                SetTerminalOutputIndexServerRpc(value);
+                return;
+            }
+            terminalOutputIndex.Value = value;
+        }
+        public void SetHasBoughtThisRound(bool value)
+        {
+            if (!BetterBreakerBox.isHost)
+            {
+                SetHasBoughtThisRoundServerRpc(value);
+                return;
+            }
+            hasBoughtThisRound.Value = value;
+        }
+
+        public void SetTerminalOutputString(string text)
+        {
+            if (!BetterBreakerBox.isHost)
+            {
+                SetTerminalOutputStringServerRpc(text);
+                return;
+            }
+            terminalOutputString.Value.Data = text;
+        }
 
 
         [ClientRpc]
@@ -24,6 +75,55 @@ namespace BetterBreakerBox.Behaviours
         public void DisplayTimerClientRpc(string name, float timeLeft, float totalTime)
         {
             BetterBreakerBox.DisplayTimer(name, timeLeft, totalTime);
+        }
+
+        [ClientRpc]
+        public void CreateTimerObjectClientRpc()
+        {
+            BetterBreakerBox.CreateTimerObject();
+        }
+
+        [ClientRpc]
+        public void DestroyTimerObjectClientRpc()
+        {
+            BetterBreakerBox.DestroyTimerObject();
+        }
+
+        [ClientRpc]
+        public void ZapClientRpc()
+        {
+            if (!BetterBreakerBox.LocalPlayerTriggered) return;
+            BetterBreakerBox.logger.LogDebug("Zapping local player");
+            PlayerControllerB localPlayer = GameNetworkManager.Instance.localPlayerController;
+            localPlayer.DamagePlayer(10, false);
+            FindObjectOfType<ItemCharger>().zapAudio.Play();
+        }
+
+        // RPC to update terminalOutput
+        [ServerRpc(RequireOwnership = false)]
+        public void SetTerminalOutputArrayServerRpc(StringArrayWrapper newOutput)
+        {
+            terminalOutputArray.Value = newOutput;
+        }
+
+        // RPC to increment the terminalOutputIndex
+        [ServerRpc(RequireOwnership = false)]
+        public void SetTerminalOutputIndexServerRpc(int value)
+        {
+            terminalOutputIndex.Value = value;
+        }
+
+        // RPC to set hasBoughtThisRound
+        [ServerRpc(RequireOwnership = false)]
+        public void SetHasBoughtThisRoundServerRpc(bool status)
+        {
+            hasBoughtThisRound.Value = status;
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        public void SetTerminalOutputStringServerRpc(string text)
+        {
+            terminalOutputString.Value.Data = text;
         }
 
         void Update()
@@ -41,9 +141,7 @@ namespace BetterBreakerBox.Behaviours
                     BetterBreakerBox.DisarmTurrets = false;
                     BetterBreakerBox.ActionLock = false;
                     disarmTurretsTimer = BetterBreakerBoxConfig.disarmTurretsTimer.Value;
-                }
-                else if (disarmTurretsTimer <= 3f)
-                {
+                    DestroyTimerObjectClientRpc();
                     DisplayActionMessageClientRpc("<color=green>Power restored!</color>", "Turrets back online and operational.", false);
                 }
                 return;
@@ -58,9 +156,7 @@ namespace BetterBreakerBox.Behaviours
                     BetterBreakerBox.BerserkTurrets = false;
                     BetterBreakerBox.ActionLock = false;
                     berserkTurretsTimer = BetterBreakerBoxConfig.berserkTurretsTimer.Value;
-                }
-                else if (berserkTurretsTimer <= 3f)
-                {
+                    DestroyTimerObjectClientRpc();
                     DisplayActionMessageClientRpc("Information", "Threat neutralized, Turrets returning to regular operation.", false);
                 }
                 return;
@@ -76,9 +172,7 @@ namespace BetterBreakerBox.Behaviours
                     BetterBreakerBox.ActionLock = false;
                     leaveShipTimer = BetterBreakerBoxConfig.shipLeaveTimer.Value;
                     StartOfRound.Instance.ShipLeave();
-                }
-                else if (leaveShipTimer <= 3f)
-                {
+                    DestroyTimerObjectClientRpc();
                     DisplayActionMessageClientRpc("Emergency evacuation!", "The Company has deemed this operation too dangerous. Autopilot Ship is departing ahead of schedule!", true);
                 }
                 return;
@@ -103,6 +197,69 @@ namespace BetterBreakerBox.Behaviours
                 Instance = null;
             }
             base.OnDestroy();
+        }
+    }
+
+    [Serializable]
+    public class StringArrayWrapper : INetworkSerializable
+    {
+        public string[] Data;
+
+        public StringArrayWrapper()
+        {
+            Data = new string[0]; // Initialize with empty array to avoid null issues.
+        }
+
+        public StringArrayWrapper(string[] data)
+        {
+            Data = data;
+        }
+
+        public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
+        {
+            // First serialize the length of the array
+            int length = Data.Length;
+            serializer.SerializeValue(ref length);
+
+            // Resize the array when deserializing
+            if (serializer.IsReader)
+            {
+                Data = new string[length];
+            }
+
+            // Serialize each element of the array
+            for (int i = 0; i < length; i++)
+            {
+                string element = Data[i];
+                serializer.SerializeValue(ref element);
+                if (serializer.IsReader)
+                {
+                    Data[i] = element;
+                }
+            }
+        }
+    }
+
+
+    [Serializable]
+    public class StringWrapper : INetworkSerializable
+    {
+        public string Data;
+
+        public StringWrapper()
+        {
+            Data = ""; // Initialize with an empty string to avoid null issues.
+        }
+
+        public StringWrapper(string data)
+        {
+            Data = data;
+        }
+
+        public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
+        {
+            // Serialize the string Data
+            serializer.SerializeValue(ref Data);
         }
     }
 }
