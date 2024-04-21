@@ -130,7 +130,6 @@ namespace BetterBreakerBox
             string terminalPostText = "\n\n<color=red>Insufficient credits to retrieve entries from the Facility Handbook.</color>\n\n";
             string terminalPreText =
                 "<color=blue><u>-- Facility Handbook --</u></color>\n\n" +
-                "...\n...\n\n" +
                 "Breaker Box:\n" +
                 "Initial inspection of the Facility's wiring has revealed that the previous electrician got a bit...distracted.\n" +
                 "The breaker box is a mess, and the switches are not labeled. In their stead the Company has decided to promote you to Electrician Specialist!!! We expect you to see to it that the breaker box is fully functional and in pristine condition.\n" +
@@ -151,10 +150,10 @@ namespace BetterBreakerBox
                 {
                     manager.SetHasBoughtThisRound(true);
                     manager.SyncGroupCredits(terminal.groupCredits - breakerboxPrice);
-                    //terminal.SyncGroupCreditsClientRpc(terminal.groupCredits - breakerboxPrice, terminal.numberOfItemsInDropship);
-                    manager.SetTerminalOutputString("\n" + manager.terminalOutputString.Value.Data + "\n" + "<color=orange>" + manager.terminalOutputArray.Value.Data[manager.terminalOutputIndex.Value] + "</color>\n") ;
+                    var newOutput = "\n" + manager.terminalOutputString.Value.Data + "\n" + "<color=orange>" + manager.terminalOutputArray.Value.Data[manager.terminalOutputIndex.Value] + "</color>\n";
+                    manager.SetTerminalOutputString(newOutput);
                     manager.SetTerminalOutputIndex(manager.terminalOutputIndex.Value + 1);
-                    output = terminalPreText + manager.terminalOutputString.Value.Data;
+                    output = terminalPreText + newOutput;
                 }
                 return output;
             }
