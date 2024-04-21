@@ -64,6 +64,19 @@ namespace BetterBreakerBox.Behaviours
             terminalOutputString.Value.Data = text;
         }
 
+        public void SyncGroupCredits(int credits)
+        {
+            Terminal terminal = FindObjectOfType<Terminal>();
+            if (BetterBreakerBox.isHost)
+            {
+                terminal.SyncGroupCreditsClientRpc(credits, terminal.numberOfItemsInDropship);
+            }
+            else
+            {
+                MySyncGroupCreditsServerRpc(credits);
+            }
+        }
+
 
         [ClientRpc]
         public void DisplayActionMessageClientRpc(string headerText, string bodyText, bool isWarning)
@@ -124,6 +137,13 @@ namespace BetterBreakerBox.Behaviours
         public void SetTerminalOutputStringServerRpc(string text)
         {
             terminalOutputString.Value.Data = text;
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        public void MySyncGroupCreditsServerRpc(int credits)
+        {
+            Terminal terminal = FindObjectOfType<Terminal>();
+            terminal.SyncGroupCreditsClientRpc(credits, terminal.numberOfItemsInDropship);
         }
 
         void Update()

@@ -132,7 +132,9 @@ namespace BetterBreakerBox
                 "<color=blue><u>-- Facility Handbook --</u></color>\n\n" +
                 "...\n...\n\n" +
                 "Breaker Box:\n" +
-                "Initial inspection of the Facility's breaker box has revealed that the contractor who we hired did a terrible job with the electrical wiring. The breaker box is a mess, and the switches are not labeled. The Company has decided to leave the breaker box as is, and instead, has provided a list of actions that can be triggered by flipping the switches in a specific order.\n\n";
+                "Initial inspection of the Facility's wiring has revealed that the previous electrician got a bit...distracted.\n" +
+                "The breaker box is a mess, and the switches are not labeled. In their stead the Company has decided to promote you to Electrician Specialist!!! We expect you to see to it that the breaker box is fully functional and in pristine condition.\n" +
+                "We have graciously supplied you with notes from the previous electrician. We have good faith that you won't let The Company down like the previous disappointment. You wouldn't want us to instate our disciplinary measures.\n\n";
             var terminal = FindObjectOfType<Terminal>();
 
             if (BetterBreakerBoxManager.Instance is { } manager)
@@ -148,8 +150,9 @@ namespace BetterBreakerBox
                 else
                 {
                     manager.SetHasBoughtThisRound(true);
-                    terminal.SyncGroupCreditsClientRpc(terminal.groupCredits - breakerboxPrice, terminal.numberOfItemsInDropship);
-                    manager.SetTerminalOutputString("\n" + manager.terminalOutputString.Value.Data + "\n" + "<color=orange>" + manager.terminalOutputArray.Value.Data[manager.terminalOutputIndex.Value] + "</color>") ;
+                    manager.SyncGroupCredits(terminal.groupCredits - breakerboxPrice);
+                    //terminal.SyncGroupCreditsClientRpc(terminal.groupCredits - breakerboxPrice, terminal.numberOfItemsInDropship);
+                    manager.SetTerminalOutputString("\n" + manager.terminalOutputString.Value.Data + "\n" + "<color=orange>" + manager.terminalOutputArray.Value.Data[manager.terminalOutputIndex.Value] + "</color>\n") ;
                     manager.SetTerminalOutputIndex(manager.terminalOutputIndex.Value + 1);
                     output = terminalPreText + manager.terminalOutputString.Value.Data;
                 }
