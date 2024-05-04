@@ -32,5 +32,21 @@ namespace BetterBreakerBox.Patches
             }
             BetterBreakerBox.StatesSet = true;
         }
+
+        [HarmonyPatch(nameof(BreakerBox.Start))]
+        [HarmonyPostfix]
+        static void StartPatch (BreakerBox __instance)
+        {
+            if (!BetterBreakerBox.isHost)
+            {
+                return; //only the host should randomize the switches
+            }
+            //randomize the breaker box switches at the start of the game
+            for (int i = 0; i < __instance.breakerSwitches.Length; i++)
+            {
+                bool state = UnityEngine.Random.Range(0, 2) == 0;
+                __instance.breakerSwitches[i].SetBool("turnedLeft", value: state);
+            }
+        }
     }
 }

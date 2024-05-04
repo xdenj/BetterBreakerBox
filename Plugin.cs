@@ -16,10 +16,14 @@ using TMPro;
 using UnityEngine;
 using TerminalApi.Classes;
 using static TerminalApi.TerminalApi;
+using GameNetcodeStuff;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace BetterBreakerBox
 {
     [BepInPlugin(MyPluginInfo.PLUGIN_GUID, MyPluginInfo.PLUGIN_NAME, MyPluginInfo.PLUGIN_VERSION)]
+    [BepInDependency(LethalLib.Plugin.ModGUID, LethalLib.Plugin.ModVersion)]
     [BepInDependency("atomic.terminalapi")]
     public class BetterBreakerBox : BaseUnityPlugin
     {
@@ -48,15 +52,30 @@ namespace BetterBreakerBox
         public static string LastState = "";
         public static bool ActionLock = false;
         public static bool LocalPlayerTriggered = false;
-
-        //hardcoding price of the breakerbox command
-        public static int breakerboxPrice = 50;
+        public static bool isPowerOffAction = false;
 
 
         // action flags:
         public static bool DisarmTurrets = false;
         public static bool BerserkTurrets = false;
         public static bool LeaveShip = false;
+
+
+        //action to index mapping
+        internal static Dictionary<string, int> actionToIndex = new Dictionary<string, int>
+        {
+            {"Error", -1},
+            {"TurretsDisarm", 0},
+            {"TurretsBerserk", 1},
+            {"ShipLeave", 2},
+            {"DoNothing", 3},
+            {"ChargeEnable", 4},
+            {"Zap", 5},
+            {"SwapDoors", 6},
+            {"PowerOff", 7}
+        };
+        public Dictionary<int, string> indexToAction = new Dictionary<int, string>();
+
 
 
 
@@ -69,15 +88,25 @@ namespace BetterBreakerBox
         {
             if (Instance == null) Instance = this;
             else return;
+
             MyConfig = new(base.Config);
+            indexToActionInit();
+            ApplyPatches();
             PopulateActions();
             NetcodePatcher();
             InitializePrefabs();
             logger.LogInfo($"{MyPluginInfo.PLUGIN_GUID}-{MyPluginInfo.PLUGIN_VERSION} has been loaded!");
-            ApplyPatches();
+
             AddCommand("breakerbox", new CommandInfo { Title = "breakerbox", Category = "other", Description = "Retrieve entries of the Facility's Handbook [50 credits]", DisplayTextSupplier = OnBreakerBoxCommand });
         }
 
+        private void indexToActionInit()
+        {
+            foreach (var pair in actionToIndex)
+            {
+                indexToAction[pair.Value] = pair.Key;
+            }
+        }
         private void InitializePrefabs()
         {
             BetterBreakerBoxManagerPrefab = LethalLib.Modules.NetworkPrefabs.CreateNetworkPrefab("BetterBreakerBox Manager");
@@ -108,6 +137,7 @@ namespace BetterBreakerBox
             TryPatches(typeof(RoundManagerPatch), "RoundManager");
             TryPatches(typeof(TurretPatch), "Turret");
             TryPatches(typeof(StartOfRoundPatch), "StartOfRound");
+            TryPatches(typeof(PlayerControllerBPatch), "PlayerControllerB");
         }
 
         private void TryPatches(Type patchType, string name)
@@ -125,7 +155,14 @@ namespace BetterBreakerBox
 
         public string OnBreakerBoxCommand()
         {
-            string output = ""; 
+            string combosOne = "";
+            string combosTwo = "";
+            string combosThree = "";
+            string actionOne = "";
+            string actionTwo = "";
+            string actionThree = "";
+            string output = "";
+
             string terminalPrePreText = "<color=red>Already retrieved one entry this round.\nTry again next round!</color>\n\n";
             string terminalPostText = "\n\n<color=red>Insufficient credits to retrieve entries from the Facility Handbook.</color>\n\n";
             string terminalPreText =
@@ -138,24 +175,116 @@ namespace BetterBreakerBox
 
             if (BetterBreakerBoxManager.Instance is { } manager)
             {
-                if (manager.hasBoughtThisRound.Value)
+                int price = manager.hintPrice.Value;
+                int index = manager.terminalOutputIndex.Value;
+                bool hasBoughtThisRound = manager.hasBoughtThisRound.Value;
+                if (hasBoughtThisRound)
                 {
-                    output = terminalPrePreText + terminalPreText + manager.terminalOutputString.Value.Data;
+                    index = index - 1;
                 }
-                else if (terminal.groupCredits < breakerboxPrice)
+               
+                switch (index)
                 {
-                    output = terminalPreText + manager.terminalOutputString.Value.Data + terminalPostText;
+                    case 0:
+                        if(terminal.groupCredits >= price || hasBoughtThisRound)
+                        {
+                            if (manager.actionOne.Value == -1)
+                            {
+                                actionOne = "No entries found in Company Handbook";
+                                combosOne = "";
+                            }
+                            else
+                            {
+                                actionOne = indexToAction[manager.actionOne.Value] + ": ";
+                                combosOne = IntToCombos(manager.comboOne.Value);
+                            }
+                            output = actionOne + combosOne;
+                        }
+                        
+                        break;
+
+                    case 1:
+                        if (manager.actionOne.Value == -1)
+                        {
+                            actionOne = "No entries found in Company Handbook";
+                            combosOne = "";
+                        }
+                        else
+                        {
+                            actionOne = indexToAction[manager.actionOne.Value] + ": ";
+                            combosOne = IntToCombos(manager.comboOne.Value);
+                        }
+                        if (terminal.groupCredits >= price || hasBoughtThisRound)
+                        {
+                            if (manager.actionTwo.Value == -1)
+                            {
+                                actionTwo = "No entries found in Company Handbook";
+                                combosTwo = "";
+                            }
+                            else
+                            {
+                                actionTwo = indexToAction[manager.actionTwo.Value] + ": ";
+                                combosTwo = IntToCombos(manager.comboTwo.Value);
+                            }
+                        }
+                        output = actionOne + combosOne + "\n" + actionTwo + combosTwo;
+                        break;
+
+                    case 2:
+                        if (manager.actionOne.Value == -1)
+                        {
+                            actionOne = "No entries found in Company Handbook";
+                            combosOne = "";
+                        }
+                        else
+                        {
+                            actionOne = indexToAction[manager.actionOne.Value] + ": ";
+                            combosOne = IntToCombos(manager.comboOne.Value);
+                        }
+                        if (manager.actionTwo.Value == -1)
+                        {
+                            actionTwo = "No entries found in Company Handbook";
+                            combosTwo = "";
+                        }
+                        else
+                        {
+                            actionTwo = indexToAction[manager.actionTwo.Value] + ": ";
+                            combosTwo = IntToCombos(manager.comboTwo.Value);
+                        }
+                        if (terminal.groupCredits >= price || hasBoughtThisRound)
+                        {
+                            if (manager.actionThree.Value == -1)
+                            {
+                                actionThree = "No entries found in Company Handbook";
+                                combosThree = "";
+                            }
+                            else
+                            {
+                                actionThree = indexToAction[manager.actionThree.Value] + ": ";
+                                combosThree = IntToCombos(manager.comboThree.Value);
+                            }
+                        }
+                        output = actionOne + combosOne + "\n" + actionTwo + combosTwo + "\n" + actionThree + combosThree;
+                        break;
+                }
+                output = "<color=orange>" + output + "</color>";
+
+                if (hasBoughtThisRound)
+                {
+                    output = terminalPrePreText + terminalPreText + output;
+                }
+                else if (terminal.groupCredits < price)
+                {
+                    output = terminalPreText + output + terminalPostText;
                 }
                 else
                 {
+                    output = terminalPreText + output;
                     manager.SetHasBoughtThisRound(true);
-                    manager.SyncGroupCredits(terminal.groupCredits - breakerboxPrice);
-                    var newOutput = "\n" + manager.terminalOutputString.Value.Data + "\n" + "<color=orange>" + manager.terminalOutputArray.Value.Data[manager.terminalOutputIndex.Value] + "</color>\n";
-                    manager.SetTerminalOutputString(newOutput);
+                    manager.SyncGroupCredits(terminal.groupCredits - price);
                     manager.SetTerminalOutputIndex(manager.terminalOutputIndex.Value + 1);
-                    output = terminalPreText + newOutput;
                 }
-                return output;
+                return output + "\n\n";
             }
             else
             {
@@ -166,6 +295,7 @@ namespace BetterBreakerBox
 
         internal static void ResetNewDay()
         {
+            DestroyTimerObject();
             SwitchesTurnedOn = "";
             StatesSet = false;
             LastState = "";
@@ -176,7 +306,6 @@ namespace BetterBreakerBox
                 betterBreakerBoxManagerInstance.SetHasBoughtThisRound(false);
             }
             ResetActions();
-
         }
 
         internal static void ResetNewRound()
@@ -185,8 +314,12 @@ namespace BetterBreakerBox
             if (BetterBreakerBoxManager.Instance is { } manager)
             {
                 manager.SetTerminalOutputIndex(0);
-                manager.SetTerminalOutputArray(new string[3]);
-                manager.SetTerminalOutputString("");
+                manager.SetComboOne(0);
+                manager.SetComboTwo(0);
+                manager.SetComboThree(0);
+                manager.SetActionOne(0);
+                manager.SetActionTwo(0);
+                manager.SetActionThree(0);
             }
             ResetNewDay();
 
@@ -206,20 +339,54 @@ namespace BetterBreakerBox
                 SwitchStates[index] = state;
             }
         }
- 
+
         private void PopulateActions()
         {
+            int weightDoNothing = Math.Clamp(BetterBreakerBoxConfig.weightDoNothing.Value, 0, int.MaxValue);
+
+            if (new[] {
+                BetterBreakerBoxConfig.weightBerserkTurrets.Value,
+                BetterBreakerBoxConfig.weightDisarmTurrets.Value,
+                BetterBreakerBoxConfig.weightShipLeave.Value,
+                BetterBreakerBoxConfig.weightDoNothing.Value,
+                BetterBreakerBoxConfig.weightEnableCharge.Value,
+                BetterBreakerBoxConfig.weightZap.Value,
+                BetterBreakerBoxConfig.weightSwapDoors.Value,
+                BetterBreakerBoxConfig.weightPowerOff.Value
+            }.Sum() == 0)
+            {
+                weightDoNothing = 1; // Ensure at least one action is available
+            }
+
+
+            bool doNothingOnce = BetterBreakerBoxConfig.doNothingOnce.Value;
+            if (new[] {
+                BetterBreakerBoxConfig.disarmTurretsOnce.Value,
+                BetterBreakerBoxConfig.berserkTurretsOnce.Value,
+                BetterBreakerBoxConfig.shipLeaveOnce.Value,
+                BetterBreakerBoxConfig.doNothingOnce.Value,
+                BetterBreakerBoxConfig.enableChargeOnce.Value,
+                BetterBreakerBoxConfig.zapOnce.Value,
+                BetterBreakerBoxConfig.swapDoorsOnce.Value,
+                BetterBreakerBoxConfig.powerOffOnce.Value
+            }.All(value => value))
+            {
+                doNothingOnce = false; // Ensure at least one action can be assigned multiple times
+            }
+
             //actionsDefinitions.Add(new ActionDefinition(SwitchAction action, int weight, bool assignOnce, string headerText, string bodyText, bool isWarning);
-            actionsDefinitions.Add(new ActionDefinition(TurretsDisarm, BetterBreakerBoxConfig.weightDisarmTurrets.Value, BetterBreakerBoxConfig.disarmTurretsOnce.Value, "<color=red>Critical power loss!</color>", "Turrets temporarily disarmed.", false));
-            actionsDefinitions.Add(new ActionDefinition(TurretsBerserk, BetterBreakerBoxConfig.weightBerserkTurrets.Value, BetterBreakerBoxConfig.berserkTurretsOnce.Value, "<color=red>Security breach detected!", "Activating Turret berserk mode for enhanced Facility protection!", true));
-            actionsDefinitions.Add(new ActionDefinition(ShipLeave, BetterBreakerBoxConfig.weightShipLeave.Value, BetterBreakerBoxConfig.shipLeaveOnce.Value, "Electromagnetic anomaly!", "The Company strongly advises all Employees to evacuate to the Autopilot Ship immediately!", true));
-            actionsDefinitions.Add(new ActionDefinition(DoNothing, BetterBreakerBoxConfig.weightDoNothing.Value, BetterBreakerBoxConfig.doNothingOnce.Value, "LOL", "We're doing nothing", false));
-            actionsDefinitions.Add(new ActionDefinition(ChargeEnable, BetterBreakerBoxConfig.weightEnableCharge.Value, BetterBreakerBoxConfig.enableChargeOnce.Value, "<color=blue>Charging enabled!</color>", "Battery-powered items can now be charged at the Breaker Box.", false));
-            actionsDefinitions.Add(new ActionDefinition(Zap, BetterBreakerBoxConfig.weightZap.Value, BetterBreakerBoxConfig.zapOnce.Value, "<color=red>ZAP!</color>", "Player has been zapped!", true));
+            actionsDefinitions.Add(new ActionDefinition(TurretsDisarm, Math.Clamp(BetterBreakerBoxConfig.weightDisarmTurrets.Value, 0, int.MaxValue), BetterBreakerBoxConfig.disarmTurretsOnce.Value, "<color=red>Critical power loss!</color>", "Turrets temporarily disarmed.", false));
+            actionsDefinitions.Add(new ActionDefinition(TurretsBerserk, Math.Clamp(BetterBreakerBoxConfig.weightBerserkTurrets.Value, 0, int.MaxValue), BetterBreakerBoxConfig.berserkTurretsOnce.Value, "<color=red>Security breach detected!", "Activating Turret berserk mode for enhanced Facility protection!", true));
+            actionsDefinitions.Add(new ActionDefinition(ShipLeave, Math.Clamp(BetterBreakerBoxConfig.weightShipLeave.Value, 0, int.MaxValue), BetterBreakerBoxConfig.shipLeaveOnce.Value, "Electromagnetic anomaly!", "The Company strongly advises all Employees to evacuate to the Autopilot Ship immediately!", true));
+            actionsDefinitions.Add(new ActionDefinition(DoNothing, weightDoNothing, doNothingOnce, "LOL", "We're doing nothing", false));
+            actionsDefinitions.Add(new ActionDefinition(ChargeEnable, Math.Clamp(BetterBreakerBoxConfig.weightEnableCharge.Value, 0, int.MaxValue), BetterBreakerBoxConfig.enableChargeOnce.Value, "<color=blue>Charging enabled!</color>", "Battery-powered items can now be charged at the Breaker Box.", false));
+            actionsDefinitions.Add(new ActionDefinition(Zap, Math.Clamp(BetterBreakerBoxConfig.weightZap.Value, 0, int.MaxValue), BetterBreakerBoxConfig.zapOnce.Value, "<color=red>ZAP!</color>", "Player has been zapped!", true));
+            actionsDefinitions.Add(new ActionDefinition(SwapDoors, Math.Clamp(BetterBreakerBoxConfig.weightSwapDoors.Value, 0, int.MaxValue), BetterBreakerBoxConfig.swapDoorsOnce.Value, "<color=blue>Doors swapped!</color>", "Big doors have been swapped.", false));
+            actionsDefinitions.Add(new ActionDefinition(PowerOff, Math.Clamp(BetterBreakerBoxConfig.weightPowerOff.Value, 0, int.MaxValue), BetterBreakerBoxConfig.powerOffOnce.Value, "<color=red>Power off!</color>", "Facility power has been turned off.", true));
             // Add other actions here...
         }
 
-        internal void RandomizeActions()
+        internal async void RandomizeActions()
         {
             switchActionMap.Clear();
             List<ActionDefinition> allActions = new List<ActionDefinition>(actionsDefinitions);
@@ -300,13 +467,7 @@ namespace BetterBreakerBox
             // Write to the file, overwriting any existing content
             File.WriteAllText(filePath, fileContent.ToString());
 #endif
-            string[] terminalOutput = new string[3];
-            for (int i = 0; i < 3; i++)
-            {
-                terminalOutput[i] = GetRandomSwitchCombo();
-            }
-            BetterBreakerBoxManager.Instance?.SetTerminalOutputArray(terminalOutput);
-            BetterBreakerBoxManager.Instance?.SetTerminalOutputIndex(0); //reset terminalOutputIndex after randomizing actions
+            PrepareTerminalHints();
         }
 
         public static void DisplayActionMessage(string headerText, string bodyText, bool isWarning)
@@ -316,6 +477,7 @@ namespace BetterBreakerBox
 
         public static void DisplayTimer(string name, float timeLeft, float totalTime)
         {
+            if (FindObjectOfType<PlayerControllerB>().isPlayerDead) return;
 
             int minutes = (int)timeLeft / 60;
             int seconds = (int)timeLeft % 60;
@@ -323,7 +485,7 @@ namespace BetterBreakerBox
             Color color = GetColorForPercentage(percentageLeft);
             if (timerObject == null)
             {
-                BetterBreakerBoxManager.Instance.CreateTimerObjectClientRpc();
+                CreateTimerObject();
                 return;
             }
 
@@ -338,31 +500,101 @@ namespace BetterBreakerBox
             return Color.green;
         }
 
-        public string GetRandomSwitchCombo()
+        public void PrepareTerminalHints()
         {
             // Filter out DoNothing and already returned actions
+            returnedActions.Clear();
             var filteredActions = switchActionMap
                 .Where(pair => pair.Value.Action.Method.Name != "DoNothing" && !returnedActions.Contains(pair.Value))
                 .ToList();
+            for (int i = 0; i < 3; i++)
+            {
+                if (filteredActions.Count != 0)
+                {  // Get a random action from the filtered list
+                    var random = new System.Random();
+                    var randomAction = filteredActions[random.Next(filteredActions.Count)].Value;
 
-            if (filteredActions.Count == 0)
-                return "All actions have been returned.";
+                    // Add this action to the set of returned actions
+                    returnedActions.Add(randomAction);
 
-            // Get a random action from the filtered list
-            var random = new System.Random();
-            var randomAction = filteredActions[random.Next(filteredActions.Count)].Value;
+                    // Gather all switch combinations for this action
+                    var combinations = switchActionMap
+                        .Where(pair => pair.Value == randomAction)
+                        .Select(pair => pair.Key)
+                        .ToList();
 
-            // Add this action to the set of returned actions
-            returnedActions.Add(randomAction);
+                    // Return the formatted string
+                    int result = 0;
+                    foreach (var combination in combinations)
+                    {
+                        // Convert the binary string to a decimal integer
+                        int value = Convert.ToInt32(combination, 2);
 
-            // Gather all switch combinations for this action
-            var combinations = switchActionMap
-                .Where(pair => pair.Value == randomAction)
-                .Select(pair => pair.Key)
-                .ToList();
+                        // Set the corresponding bit in the result integer
+                        // Shift 1 left by (value - 1) because bit positions are 0-based
+                        result |= (1 << (value - 1));
+                    }
+                    if (BetterBreakerBoxManager.Instance is { } manager)
+                    {
+                        switch (i)
+                        {
+                            case 0:
+                                manager.SetComboOne(result);
+                                manager.SetActionOne(actionToIndex[randomAction.Action.Method.Name]);
+                                break;
+                            case 1:
+                                manager.SetComboTwo(result);
+                                manager.SetActionTwo(actionToIndex[randomAction.Action.Method.Name]);
+                                break;
+                            case 2:
+                                manager.SetComboThree(result);
+                                manager.SetActionThree(actionToIndex[randomAction.Action.Method.Name]);
+                                break;
+                        }
+                    }
+                }
+            }
+        }
 
-            // Return the formatted string
-            return $"{randomAction.Action.Method.Name}: {string.Join(", ", combinations)}";
+        public string IntToCombos(int intCombos)
+        {
+            StringBuilder result = new StringBuilder();
+            for (int i = 0; i < 32; i++)
+            {
+                // Check if the ith bit is set
+                if ((intCombos & (1 << i)) != 0)
+                {
+                    // If set, calculate the corresponding binary string
+                    string combo = Convert.ToString(i + 1, 2).PadLeft(5, '0');
+                    if (result.Length > 0)
+                    {
+                        result.Append(", ");
+                    }
+                    result.Append(combo);
+                }
+            }
+            return result.ToString();
+        }
+
+        public static int BinaryStringToInt(string binaryString)
+        {
+            try
+            {
+                return Convert.ToInt32(binaryString, 2);
+            }
+            catch (FormatException e)
+            {
+                logger.LogError("Input string is not a valid binary number.\n{e}");
+                return -1; // Return -1 or any other appropriate value to indicate the error
+            }
+        }
+
+        public static void UpdateHintPrice(int newPrice)
+        {
+            if (BetterBreakerBoxManager.Instance is { } manager)
+            {
+                manager.SetHintPrice(Math.Clamp(newPrice, 0, int.MaxValue));
+            }
         }
 
         //Actions:
@@ -390,9 +622,13 @@ namespace BetterBreakerBox
         }
 
         //TODO: Implement remaining actions
-        public void LightsOff()
+        public void PowerOff()
         {
-
+            ResetActions();
+            isPowerOffAction = true;
+            RoundManager.Instance.SwitchPower(false);
+            ActionLock = false;
+            isPowerOffAction = false;
         }
 
         public void ChargeEnable()
@@ -437,9 +673,16 @@ namespace BetterBreakerBox
 
         }
 
-        public void SwapLocks()
+        public void SwapDoors()
         {
-
+            ResetActions();
+            TerminalAccessibleObject[] bigDoors = FindObjectsOfType<TerminalAccessibleObject>().Where(obj => obj.isBigDoor).ToArray();
+            if (bigDoors.Length == 0) return;
+            foreach (TerminalAccessibleObject bigDoor in bigDoors)
+            {
+                bigDoor.SetDoorOpen(!bigDoor.isDoorOpen);
+            }
+            ActionLock = false;
         }
 
         public void Thunderstorm()

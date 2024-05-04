@@ -1,4 +1,6 @@
-﻿using HarmonyLib;
+﻿using BetterBreakerBox.Behaviours;
+using BetterBreakerBox.Configs;
+using HarmonyLib;
 using System;
 using Unity.Netcode;
 using UnityEngine;
@@ -16,6 +18,10 @@ namespace BetterBreakerBox.Patches
             BetterBreakerBox.hasRandomizedActions = false;
             BetterBreakerBox.isHost = GameNetworkManager.Instance.isHostingGame;
             if (!__instance.IsOwner) return;
+            if (BetterBreakerBoxManager.Instance != null)
+            {
+                return;
+            }
             try
             {
                 var BetterBreakerBoxManager = Object.Instantiate(BetterBreakerBox.BetterBreakerBoxManagerPrefab, __instance.transform);
@@ -36,7 +42,11 @@ namespace BetterBreakerBox.Patches
             if (!BetterBreakerBox.isHost) return;
             if (TimeOfDay.Instance.daysUntilDeadline == 3 && !BetterBreakerBox.hasRandomizedActions)
             {
+                BetterBreakerBoxManager.Instance.Reset();
                 BetterBreakerBox.Instance.RandomizeActions();//randomize actions at beginning of first day
+                BetterBreakerBox.Instance.PrepareTerminalHints();
+                
+                BetterBreakerBox.UpdateHintPrice(BetterBreakerBoxConfig.hintPrice.Value);
                 BetterBreakerBox.hasRandomizedActions = true;
                 BetterBreakerBox.logger.LogDebug("Randomized actions at beginning of first day");
             }
@@ -44,15 +54,13 @@ namespace BetterBreakerBox.Patches
             {
                 BetterBreakerBox.hasRandomizedActions = false;
             }
-            //BetterBreakerBox.logger.LogDebug($"Is host: {BetterBreakerBox.isHost} | Days until deadline: {TimeOfDay.Instance.daysUntilDeadline} | Times Quota fulfilled: {TimeOfDay.Instance.timesFulfilledQuota}");
         }
 
         [HarmonyPatch(nameof(RoundManager.SwitchPower))]
         [HarmonyPrefix]
         static bool SwitchPowerPatch(RoundManager __instance)
         {
-            //disabling game's default behaviour of switching off the facility's power after a certain # of switches have been interacted with
-            return false;
+            return BetterBreakerBox.isPowerOffAction;
         }
     }
 }
