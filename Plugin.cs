@@ -17,8 +17,6 @@ using UnityEngine;
 using TerminalApi.Classes;
 using static TerminalApi.TerminalApi;
 using GameNetcodeStuff;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace BetterBreakerBox
 {
@@ -37,6 +35,8 @@ namespace BetterBreakerBox
         internal Dictionary<string, ActionDefinition> switchActionMap = new Dictionary<string, ActionDefinition>();
         private HashSet<ActionDefinition> returnedActions = new HashSet<ActionDefinition>();
 
+        internal static BreakerBox breakerBoxInstance;
+
 
         private static GameObject timerObject;
         private static TextMeshProUGUI timerTextMesh;
@@ -53,6 +53,8 @@ namespace BetterBreakerBox
         public static bool ActionLock = false;
         public static bool LocalPlayerTriggered = false;
         public static bool isPowerOffAction = false;
+        public static bool isBreakerBoxEnabled = true;
+        public static bool isFacilityPowered = false;
 
 
         // action flags:
@@ -72,7 +74,8 @@ namespace BetterBreakerBox
             {"ChargeEnable", 4},
             {"Zap", 5},
             {"SwapDoors", 6},
-            {"PowerOff", 7}
+            {"SwitchPower", 7},
+            {"EMP", 8}
         };
         public Dictionary<int, string> indexToAction = new Dictionary<int, string>();
 
@@ -182,11 +185,11 @@ namespace BetterBreakerBox
                 {
                     index = index - 1;
                 }
-               
+
                 switch (index)
                 {
                     case 0:
-                        if(terminal.groupCredits >= price || hasBoughtThisRound)
+                        if (terminal.groupCredits >= price || hasBoughtThisRound)
                         {
                             if (manager.actionOne.Value == -1)
                             {
@@ -200,7 +203,7 @@ namespace BetterBreakerBox
                             }
                             output = actionOne + combosOne;
                         }
-                        
+
                         break;
 
                     case 1:
@@ -301,6 +304,8 @@ namespace BetterBreakerBox
             LastState = "";
             ActionLock = false;
             LocalPlayerTriggered = false;
+            isBreakerBoxEnabled = true;
+
             if (BetterBreakerBoxManager.Instance is { } betterBreakerBoxManagerInstance)
             {
                 betterBreakerBoxManagerInstance.SetHasBoughtThisRound(false);
@@ -330,6 +335,7 @@ namespace BetterBreakerBox
             DisarmTurrets = false;
             BerserkTurrets = false;
             LeaveShip = false;
+            isPowerOffAction = false;
         }
 
         public static void UpdateSwitchStates(int index, bool state)
@@ -343,23 +349,8 @@ namespace BetterBreakerBox
         private void PopulateActions()
         {
             int weightDoNothing = Math.Clamp(BetterBreakerBoxConfig.weightDoNothing.Value, 0, int.MaxValue);
-
-            if (new[] {
-                BetterBreakerBoxConfig.weightBerserkTurrets.Value,
-                BetterBreakerBoxConfig.weightDisarmTurrets.Value,
-                BetterBreakerBoxConfig.weightShipLeave.Value,
-                BetterBreakerBoxConfig.weightDoNothing.Value,
-                BetterBreakerBoxConfig.weightEnableCharge.Value,
-                BetterBreakerBoxConfig.weightZap.Value,
-                BetterBreakerBoxConfig.weightSwapDoors.Value,
-                BetterBreakerBoxConfig.weightPowerOff.Value
-            }.Sum() == 0)
-            {
-                weightDoNothing = 1; // Ensure at least one action is available
-            }
-
-
             bool doNothingOnce = BetterBreakerBoxConfig.doNothingOnce.Value;
+
             if (new[] {
                 BetterBreakerBoxConfig.disarmTurretsOnce.Value,
                 BetterBreakerBoxConfig.berserkTurretsOnce.Value,
@@ -368,21 +359,34 @@ namespace BetterBreakerBox
                 BetterBreakerBoxConfig.enableChargeOnce.Value,
                 BetterBreakerBoxConfig.zapOnce.Value,
                 BetterBreakerBoxConfig.swapDoorsOnce.Value,
-                BetterBreakerBoxConfig.powerOffOnce.Value
-            }.All(value => value))
+                BetterBreakerBoxConfig.switchPowerOnce.Value,
+                BetterBreakerBoxConfig.empOnce.Value
+            }.All(value => value) || new[] {
+                BetterBreakerBoxConfig.weightBerserkTurrets.Value,
+                BetterBreakerBoxConfig.weightDisarmTurrets.Value,
+                BetterBreakerBoxConfig.weightShipLeave.Value,
+                BetterBreakerBoxConfig.weightDoNothing.Value,
+                BetterBreakerBoxConfig.weightEnableCharge.Value,
+                BetterBreakerBoxConfig.weightZap.Value,
+                BetterBreakerBoxConfig.weightSwapDoors.Value,
+                BetterBreakerBoxConfig.weightSwitchPower.Value,
+                BetterBreakerBoxConfig.weightEMP.Value
+            }.Sum() == 0)
             {
                 doNothingOnce = false; // Ensure at least one action can be assigned multiple times
+                weightDoNothing = 1; // Ensure at least one action has positive weight
             }
 
-            //actionsDefinitions.Add(new ActionDefinition(SwitchAction action, int weight, bool assignOnce, string headerText, string bodyText, bool isWarning);
-            actionsDefinitions.Add(new ActionDefinition(TurretsDisarm, Math.Clamp(BetterBreakerBoxConfig.weightDisarmTurrets.Value, 0, int.MaxValue), BetterBreakerBoxConfig.disarmTurretsOnce.Value, "<color=red>Critical power loss!</color>", "Turrets temporarily disarmed.", false));
-            actionsDefinitions.Add(new ActionDefinition(TurretsBerserk, Math.Clamp(BetterBreakerBoxConfig.weightBerserkTurrets.Value, 0, int.MaxValue), BetterBreakerBoxConfig.berserkTurretsOnce.Value, "<color=red>Security breach detected!", "Activating Turret berserk mode for enhanced Facility protection!", true));
-            actionsDefinitions.Add(new ActionDefinition(ShipLeave, Math.Clamp(BetterBreakerBoxConfig.weightShipLeave.Value, 0, int.MaxValue), BetterBreakerBoxConfig.shipLeaveOnce.Value, "Electromagnetic anomaly!", "The Company strongly advises all Employees to evacuate to the Autopilot Ship immediately!", true));
-            actionsDefinitions.Add(new ActionDefinition(DoNothing, weightDoNothing, doNothingOnce, "LOL", "We're doing nothing", false));
-            actionsDefinitions.Add(new ActionDefinition(ChargeEnable, Math.Clamp(BetterBreakerBoxConfig.weightEnableCharge.Value, 0, int.MaxValue), BetterBreakerBoxConfig.enableChargeOnce.Value, "<color=blue>Charging enabled!</color>", "Battery-powered items can now be charged at the Breaker Box.", false));
-            actionsDefinitions.Add(new ActionDefinition(Zap, Math.Clamp(BetterBreakerBoxConfig.weightZap.Value, 0, int.MaxValue), BetterBreakerBoxConfig.zapOnce.Value, "<color=red>ZAP!</color>", "Player has been zapped!", true));
-            actionsDefinitions.Add(new ActionDefinition(SwapDoors, Math.Clamp(BetterBreakerBoxConfig.weightSwapDoors.Value, 0, int.MaxValue), BetterBreakerBoxConfig.swapDoorsOnce.Value, "<color=blue>Doors swapped!</color>", "Big doors have been swapped.", false));
-            actionsDefinitions.Add(new ActionDefinition(PowerOff, Math.Clamp(BetterBreakerBoxConfig.weightPowerOff.Value, 0, int.MaxValue), BetterBreakerBoxConfig.powerOffOnce.Value, "<color=red>Power off!</color>", "Facility power has been turned off.", true));
+            //actionsDefinitions.Add(new ActionDefinition(SwitchAction action, int weight, bool assignOnce, string headerText, string bodyText, bool isWarning, bool displayMessage));
+            actionsDefinitions.Add(new ActionDefinition(TurretsDisarm, Math.Clamp(BetterBreakerBoxConfig.weightDisarmTurrets.Value, 0, int.MaxValue), BetterBreakerBoxConfig.disarmTurretsOnce.Value, "<color=red>Critical power loss!</color>", "Turrets temporarily disarmed.", false, true));
+            actionsDefinitions.Add(new ActionDefinition(TurretsBerserk, Math.Clamp(BetterBreakerBoxConfig.weightBerserkTurrets.Value, 0, int.MaxValue), BetterBreakerBoxConfig.berserkTurretsOnce.Value, "<color=red>Security breach detected!", "Activating Turret berserk mode for enhanced Facility protection!", true, true));
+            actionsDefinitions.Add(new ActionDefinition(ShipLeave, Math.Clamp(BetterBreakerBoxConfig.weightShipLeave.Value, 0, int.MaxValue), BetterBreakerBoxConfig.shipLeaveOnce.Value, "Electromagnetic anomaly!", "The Company strongly advises all Employees to evacuate to the Autopilot Ship immediately!", true, true));
+            actionsDefinitions.Add(new ActionDefinition(DoNothing, weightDoNothing, doNothingOnce, "LOL", "We're doing nothing", false, true));
+            actionsDefinitions.Add(new ActionDefinition(ChargeEnable, Math.Clamp(BetterBreakerBoxConfig.weightEnableCharge.Value, 0, int.MaxValue), BetterBreakerBoxConfig.enableChargeOnce.Value, "<color=blue>Charging enabled!</color>", "Battery-powered items can now be charged at the Breaker Box.", false, true));
+            actionsDefinitions.Add(new ActionDefinition(Zap, Math.Clamp(BetterBreakerBoxConfig.weightZap.Value, 0, int.MaxValue), BetterBreakerBoxConfig.zapOnce.Value, "<color=red>ZAP!</color>", "Player has been zapped!", true, true));
+            actionsDefinitions.Add(new ActionDefinition(SwapDoors, Math.Clamp(BetterBreakerBoxConfig.weightSwapDoors.Value, 0, int.MaxValue), BetterBreakerBoxConfig.swapDoorsOnce.Value, "<color=blue>Doors swapped!</color>", "Big doors have been swapped.", false, true));
+            actionsDefinitions.Add(new ActionDefinition(SwitchPower, Math.Clamp(BetterBreakerBoxConfig.weightSwitchPower.Value, 0, int.MaxValue), BetterBreakerBoxConfig.switchPowerOnce.Value, "<color=red>Power off!</color>", "Facility power has been turned off.", true, false));
+            actionsDefinitions.Add(new ActionDefinition(EMP, Math.Clamp(BetterBreakerBoxConfig.weightEMP.Value, 0, int.MaxValue), BetterBreakerBoxConfig.empOnce.Value, "<color=red>EMP!</color>", "EMP has been activated. All electronic systems offline", true, true));
             // Add other actions here...
         }
 
@@ -622,11 +626,33 @@ namespace BetterBreakerBox
         }
 
         //TODO: Implement remaining actions
-        public void PowerOff()
+        public void SwitchPower()
         {
             ResetActions();
             isPowerOffAction = true;
-            RoundManager.Instance.SwitchPower(false);
+            logger.LogDebug($"isFacilityPowered: {isFacilityPowered} | setting Facility power to: {!isFacilityPowered}");
+
+            if (isFacilityPowered)
+            {
+                RoundManager.Instance.PowerSwitchOffClientRpc();
+                breakerBoxInstance.breakerBoxHum.Stop();
+                if (BetterBreakerBoxManager.Instance is { } manager)
+                {
+                    manager.DisplayActionMessageClientRpc("Warning", "Facility power has been turned off.", true);
+                }
+            }
+            else
+            {
+                RoundManager.Instance.PowerSwitchOnClientRpc();
+                breakerBoxInstance.breakerBoxHum.Play();
+                if (BetterBreakerBoxManager.Instance is { } manager)
+                {
+                    manager.DisplayActionMessageClientRpc("Information", "Facility power has been turned on.", false);
+                }
+
+            }
+            isFacilityPowered = !isFacilityPowered;
+            //FindObjectOfType<BreakerBox>().isPowerOn = !isFacilityPowered;
             ActionLock = false;
             isPowerOffAction = false;
         }
@@ -634,19 +660,13 @@ namespace BetterBreakerBox
         public void ChargeEnable()
         {
             ResetActions();
-            BreakerBox[] breakerBoxes = FindObjectsOfType<BreakerBox>();
-            for (int i = 0; i < breakerBoxes.Length; i++)
+            if (breakerBoxInstance.GetComponent<ChargingManager>() == null)
             {
-                BreakerBox radarBooster = breakerBoxes[i];
-                if (radarBooster.GetComponent<ChargingManager>() == null)
-                {
-                    radarBooster.gameObject.AddComponent<ChargingManager>();
-                }
-                else
-                {
-                    BetterBreakerBoxManager.Instance.DisplayActionMessageClientRpc("Information", "Charging is already enabled.", false);
-                }
-
+                breakerBoxInstance.gameObject.AddComponent<ChargingManager>();
+            }
+            else
+            {
+                BetterBreakerBoxManager.Instance.DisplayActionMessageClientRpc("Information", "Charging is already enabled.", false);
             }
             ActionLock = false;
         }
@@ -654,7 +674,7 @@ namespace BetterBreakerBox
         public static void Zap()
         {
             ResetActions();
-            BetterBreakerBoxManager.Instance.ZapClientRpc();
+            BetterBreakerBoxManager.Instance.ZapClientRpc(Math.Clamp(BetterBreakerBoxConfig.zapDamage.Value, 0, 100));
             ActionLock = false;
         }
 
@@ -677,10 +697,12 @@ namespace BetterBreakerBox
         {
             ResetActions();
             TerminalAccessibleObject[] bigDoors = FindObjectsOfType<TerminalAccessibleObject>().Where(obj => obj.isBigDoor).ToArray();
-            if (bigDoors.Length == 0) return;
-            foreach (TerminalAccessibleObject bigDoor in bigDoors)
+            if (bigDoors.Length > 0)
             {
-                bigDoor.SetDoorOpen(!bigDoor.isDoorOpen);
+                foreach (TerminalAccessibleObject bigDoor in bigDoors)
+                {
+                    bigDoor.SetDoorOpen(!bigDoor.isDoorOpen);
+                }
             }
             ActionLock = false;
         }
@@ -692,7 +714,58 @@ namespace BetterBreakerBox
 
         public void EMP()
         {
+            ResetActions();
+            isPowerOffAction = true;
+            isBreakerBoxEnabled = false;
+            RoundManager.Instance.PowerSwitchOffClientRpc();
+            RoundManager.Instance.powerOffPermanently = true;
+            breakerBoxInstance.isPowerOn = false;
+            breakerBoxInstance.breakerBoxHum.Stop();
+            StartOfRound.Instance.PowerSurgeShip();
+            PlayerControllerB localPlayer = GameNetworkManager.Instance.localPlayerController;
+            var unlockables = StartOfRound.Instance.unlockablesList.unlockables;
+            var teleporterPrefab = unlockables.Find(u => u.unlockableName == "Teleporter").prefabObject;
+            var teleporter = teleporterPrefab.GetComponent<ShipTeleporter>();
+            localPlayer.statusEffectAudio.PlayOneShot(teleporter.teleporterBeamUpSFX);
 
+            //set charge of all battery powered items to 0
+            GrabbableObject[] grabbableObjects = FindObjectsOfType<GrabbableObject>().Where(obj => obj.itemProperties.requiresBattery).ToArray();
+            if (grabbableObjects.Length > 0)
+            {
+                foreach (GrabbableObject grabbableObject in grabbableObjects)
+                {
+                    grabbableObject.insertedBattery.charge = 0f;
+                }
+            }
+
+            //disable all turrets
+            DisarmTurrets = true;
+
+            //disable all doors
+            TerminalAccessibleObject[] bigDoors = FindObjectsOfType<TerminalAccessibleObject>().Where(obj => obj.isBigDoor).ToArray();
+            if (bigDoors.Length > 0)
+            {
+                foreach (TerminalAccessibleObject bigDoor in bigDoors)
+                {
+                    if (BetterBreakerBoxConfig.lockDoorsOnEmp.Value)
+                    {
+                        bigDoor.gameObject.GetComponent<AnimatedObjectTrigger>().SetBoolOnClientOnly(false);
+                        logger.LogDebug($"Door {bigDoor.name} is now closed");
+                    }
+                }
+            }
+            else
+            {
+                logger.LogDebug("No big doors found");
+            }
+
+            //diable charging
+            if (breakerBoxInstance.GetComponent<ChargingManager>() != null)
+            {
+                Destroy(breakerBoxInstance.GetComponent<ChargingManager>());
+            }
+
+            ActionLock = false;
         }
 
         public void FlipMeltdown()
@@ -742,8 +815,9 @@ namespace BetterBreakerBox
         public string HeaderText { get; set; }
         public string BodyText { get; set; }
         public bool IsWarning { get; set; }
+        public bool DisplayMessage { get; set; }
 
-        public ActionDefinition(SwitchAction action, int weight, bool assignOnce, string headerText, string bodyText, bool isWarning)
+        public ActionDefinition(SwitchAction action, int weight, bool assignOnce, string headerText, string bodyText, bool isWarning, bool displayMessage)
         {
             Action = action;
             Weight = weight;
@@ -751,6 +825,7 @@ namespace BetterBreakerBox
             HeaderText = headerText;
             BodyText = bodyText;
             IsWarning = isWarning;
+            DisplayMessage = displayMessage;
         }
     }
 

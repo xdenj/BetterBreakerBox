@@ -1,11 +1,15 @@
 ﻿using BetterBreakerBox.Behaviours;
+using BetterBreakerBox.Configs;
 using HarmonyLib;
+using UnityEngine;
+
 
 namespace BetterBreakerBox.Patches
 {
     [HarmonyPatch(typeof(StartOfRound))]
     internal class StartOfRoundPatch
     {
+
         [HarmonyPatch(nameof(StartOfRound.Update))]
         [HarmonyPostfix]
         static void UpdatePatch(StartOfRound __instance)
@@ -25,12 +29,15 @@ namespace BetterBreakerBox.Patches
                     //check if the state of the switches has changed since last Update()
                     if (BetterBreakerBox.GetSwitchActionMap()?.TryGetValue(BetterBreakerBox.SwitchesTurnedOn, out ActionDefinition actionDef) == true)
                     {
-                        if (!BetterBreakerBox.ActionLock)
+                        if (!BetterBreakerBox.ActionLock && BetterBreakerBox.isBreakerBoxEnabled)
                         {
                             //Set Lock flag to prevent an action from being triggered while another action is in progress
                             BetterBreakerBox.ActionLock = true;
                             // Display action messages before invoking the action
-                            BetterBreakerBoxManager.Instance?.DisplayActionMessageClientRpc(actionDef.HeaderText, actionDef.BodyText, actionDef.IsWarning);
+                            if (actionDef.DisplayMessage)
+                            {
+                                BetterBreakerBoxManager.Instance?.DisplayActionMessageClientRpc(actionDef.HeaderText, actionDef.BodyText, actionDef.IsWarning);
+                            }                            
                             // Now, invoke the action
                             actionDef.Action.Invoke();
                         }
@@ -39,7 +46,6 @@ namespace BetterBreakerBox.Patches
                     BetterBreakerBox.LastState = BetterBreakerBox.SwitchesTurnedOn;
                 }
             }
-
         }
 
         [HarmonyPatch(nameof(StartOfRound.playersFiredGameOver))]
@@ -55,6 +61,11 @@ namespace BetterBreakerBox.Patches
         {
             BetterBreakerBox.ResetNewDay();
             BetterBreakerBox.logger.LogInfo("Ship has left, resetting.");
+            if (!BetterBreakerBox.isHost) return;
+            if (BetterBreakerBoxConfig.resetAfterDay.Value)
+            {
+                BetterBreakerBox.hasRandomizedActions = false;
+            }
         }
     }
 }

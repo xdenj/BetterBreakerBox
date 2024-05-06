@@ -1,4 +1,5 @@
-﻿using HarmonyLib;
+﻿using BepInEx.Logging;
+using HarmonyLib;
 
 namespace BetterBreakerBox.Patches
 {
@@ -6,10 +7,11 @@ namespace BetterBreakerBox.Patches
     internal class BreakerBoxPatch
     {
         [HarmonyPatch(nameof(BreakerBox.SwitchBreaker))]
-        [HarmonyPostfix]
-        static void SwitchBreakerPatch(BreakerBox __instance)
+        [HarmonyPrefix]
+        static bool SwitchBreakerPostfix(BreakerBox __instance)
         {
-            __instance.breakerBoxHum.Play();
+            BetterBreakerBox.isFacilityPowered = __instance.isPowerOn;
+            BetterBreakerBox.logger.LogDebug($"isPowerOn {__instance.isPowerOn}");
             BetterBreakerBox.LocalPlayerTriggered = false;
             BetterBreakerBox.logger.LogDebug("Number of levers turned off:  " + __instance.leversSwitchedOff);
             BetterBreakerBox.logger.LogDebug("Current lever positions: ");
@@ -17,7 +19,7 @@ namespace BetterBreakerBox.Patches
             for (int i = 0; i < __instance.breakerSwitches.Length; i++)
             {
                 bool state = __instance.breakerSwitches[i].GetBool("turnedLeft");
-                // "turnedleft" is the state of the breaker switch. turnedLeft = off means switch is turned off, turnedleft = true means switch is turned on
+                // "turnedleft" is the state of the breaker switch. turnedLeft = false means switch is turned off, turnedleft = true means switch is turned on
 
                 if (__instance.breakerSwitches[i].gameObject.GetComponent<AnimatedObjectTrigger>().localPlayerTriggered && (BetterBreakerBox.SwitchStates[i] != state)) //if state has changed AND trigger was local player
                 {
@@ -31,21 +33,32 @@ namespace BetterBreakerBox.Patches
                 BetterBreakerBox.SwitchesTurnedOn += state ? "1" : "0";
             }
             BetterBreakerBox.StatesSet = true;
+            return false;
         }
 
         [HarmonyPatch(nameof(BreakerBox.Start))]
         [HarmonyPostfix]
-        static void StartPatch (BreakerBox __instance)
+        static void StartPatch(BreakerBox __instance)
         {
+            BetterBreakerBox.breakerBoxInstance = __instance;
+
             if (!BetterBreakerBox.isHost)
             {
                 return; //only the host should randomize the switches
             }
             //randomize the breaker box switches at the start of the game
-            for (int i = 0; i < __instance.breakerSwitches.Length; i++)
+            //for (int i = 0; i < __instance.breakerSwitches.Length; i++)
+            //{
+            //    bool state = UnityEngine.Random.Range(0, 2) == 0;
+            //    __instance.breakerSwitches[i].SetBool("turnedLeft", value: state);
+            //}
+            foreach (var breakerSwitch in __instance.breakerSwitches)
             {
-                bool state = UnityEngine.Random.Range(0, 2) == 0;
-                __instance.breakerSwitches[i].SetBool("turnedLeft", value: state);
+                bool randomState = UnityEngine.Random.Range(0, 2) == 0;
+                AnimatedObjectTrigger component = breakerSwitch.gameObject.GetComponent<AnimatedObjectTrigger>();
+                component.boolValue = randomState;
+                component.setInitialState = randomState;
+                breakerSwitch.SetBool("turnedLeft", randomState);
             }
         }
     }

@@ -168,14 +168,14 @@ namespace BetterBreakerBox.Behaviours
         }
 
         [ClientRpc]
-        public void ZapClientRpc()
+        public void ZapClientRpc(int damage)
         {
             if (!BetterBreakerBox.LocalPlayerTriggered) return;
             BetterBreakerBox.logger.LogDebug("Zapping local player");
             PlayerControllerB localPlayer = GameNetworkManager.Instance.localPlayerController;
             
             HUDManager.Instance.ShakeCamera(ScreenShakeType.Big);
-            localPlayer.DamagePlayer(10, false);
+            localPlayer.DamagePlayer(damage, false);
             localPlayer.beamUpParticle.Play();
             var charger = FindObjectOfType<ItemCharger>();
             localPlayer.statusEffectAudio.PlayOneShot(charger.zapAudio.clip);
@@ -249,6 +249,7 @@ namespace BetterBreakerBox.Behaviours
         void Update()
         {
             if (!BetterBreakerBox.isHost) return; //only the host should be able to trigger actions
+            if (!BetterBreakerBox.isBreakerBoxEnabled) return; //don't do anything if the breaker box is disabled
             if (!BetterBreakerBox.LeaveShip && !BetterBreakerBox.DisarmTurrets && !BetterBreakerBox.BerserkTurrets) return; //no action to trigger
 
             if (BetterBreakerBox.DisarmTurrets)

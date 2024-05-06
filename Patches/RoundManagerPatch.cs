@@ -40,7 +40,7 @@ namespace BetterBreakerBox.Patches
         static void UpdatePatch(RoundManager __instance)
         {
             if (!BetterBreakerBox.isHost) return;
-            if (TimeOfDay.Instance.daysUntilDeadline == 3 && !BetterBreakerBox.hasRandomizedActions)
+            if ((TimeOfDay.Instance.daysUntilDeadline == 3 && !BetterBreakerBox.hasRandomizedActions) || (BetterBreakerBoxConfig.resetAfterDay.Value && !BetterBreakerBox.hasRandomizedActions && TimeOfDay.Instance.daysUntilDeadline != 3))
             {
                 BetterBreakerBoxManager.Instance.Reset();
                 BetterBreakerBox.Instance.RandomizeActions();//randomize actions at beginning of first day
@@ -48,7 +48,8 @@ namespace BetterBreakerBox.Patches
                 
                 BetterBreakerBox.UpdateHintPrice(BetterBreakerBoxConfig.hintPrice.Value);
                 BetterBreakerBox.hasRandomizedActions = true;
-                BetterBreakerBox.logger.LogDebug("Randomized actions at beginning of first day");
+                BetterBreakerBox.logger.LogDebug($"Randomized actions at beginning of {(BetterBreakerBoxConfig.resetAfterDay.Value ? "day" : "round")}");
+
             }
             else if (TimeOfDay.Instance.daysUntilDeadline <= 0)
             {
@@ -60,7 +61,7 @@ namespace BetterBreakerBox.Patches
         [HarmonyPrefix]
         static bool SwitchPowerPatch(RoundManager __instance)
         {
-            return BetterBreakerBox.isPowerOffAction;
+            return false;
         }
     }
 }

@@ -1,11 +1,10 @@
 ﻿using BepInEx.Configuration;
-using Unity.Networking.Transport.Error;
 
 namespace BetterBreakerBox.Configs
 {
     public class BetterBreakerBoxConfig
     {
-        public static ConfigEntry<int> hintPrice;
+        
 
         public static ConfigEntry<int> weightDisarmTurrets;
         public static ConfigEntry<int> weightBerserkTurrets;
@@ -14,7 +13,8 @@ namespace BetterBreakerBox.Configs
         public static ConfigEntry<int> weightEnableCharge;
         public static ConfigEntry<int> weightZap;
         public static ConfigEntry<int> weightSwapDoors;
-        public static ConfigEntry<int> weightPowerOff;
+        public static ConfigEntry<int> weightSwitchPower;
+        public static ConfigEntry<int> weightEMP;
 
         public static ConfigEntry<bool> disarmTurretsOnce;
         public static ConfigEntry<bool> berserkTurretsOnce;
@@ -23,11 +23,17 @@ namespace BetterBreakerBox.Configs
         public static ConfigEntry<bool> enableChargeOnce;
         public static ConfigEntry<bool> zapOnce;
         public static ConfigEntry<bool> swapDoorsOnce;
-        public static ConfigEntry<bool> powerOffOnce;
+        public static ConfigEntry<bool> switchPowerOnce;
+        public static ConfigEntry<bool> empOnce;
 
         public static ConfigEntry<int> disarmTurretsTimer;
         public static ConfigEntry<int> berserkTurretsTimer;
         public static ConfigEntry<int> shipLeaveTimer;
+
+        public static ConfigEntry<bool> lockDoorsOnEmp;
+        public static ConfigEntry<int> zapDamage;
+        public static ConfigEntry<int> hintPrice;
+        public static ConfigEntry<bool> resetAfterDay;
 
 
         public BetterBreakerBoxConfig(ConfigFile cfg)
@@ -39,15 +45,13 @@ namespace BetterBreakerBox.Configs
             string descEnableCharge = "enabling charging battery-powered items on the breaker box";
             string descZap = "zapping the player with a small amount of damage";
             string descSwapDoors = "swapping the state of all doors in the facility";
-            string descPowerOff = "turning off the facility's power";
+            string descSwitchPower = "toggling the power in the facility";
+            string descEMP = "disabling all electronic devices on the moon";
 
             string weightPreDesc = "Adjusts the probability that a switch combination will trigger the action of";
             string weightPostDesc = "Higher weights make this action more likely to be assigned to one of the switch combinations, a weight of 0 will prevent the action from being assigned.";
             string oncePreDesc = "Select if the action of";
             string oncePostDesc = "should only be able to be assigned to one switch combination, regardless of the weight assigned to it.";
-
-            //prices
-            hintPrice = cfg.Bind("General", "hintPrice", 50, "Credits required to purchase a hint from the terminal.");
 
             //weights
             weightDisarmTurrets = cfg.Bind("Weights", "weightDisarmTurrets", 2, $"{weightPreDesc} {descDisarmTurrets}. {weightPostDesc}");
@@ -57,22 +61,32 @@ namespace BetterBreakerBox.Configs
             weightEnableCharge = cfg.Bind("Weights", "weightEnableCharge", 4, $"{weightPreDesc} {descEnableCharge}. {weightPostDesc}");
             weightZap = cfg.Bind("Weights", "weightZap", 2, $"{weightPreDesc} {descZap}. {weightPostDesc}");
             weightSwapDoors = cfg.Bind("Weights", "weightSwapDoors", 2, $"{weightPreDesc} {descSwapDoors}. {weightPostDesc}");
-            weightPowerOff = cfg.Bind("Weights", "weightPowerOff", 1, $"{weightPreDesc} {descPowerOff}. {weightPostDesc}");
+            weightSwitchPower = cfg.Bind("Weights", "weightSwitchPower", 1, $"{weightPreDesc} {descSwitchPower}. {weightPostDesc}");
+            weightEMP = cfg.Bind("Weights", "weightEMP", 1, $"{weightPreDesc} {descEMP}. {weightPostDesc}");
 
-            //limit
-            disarmTurretsOnce = cfg.Bind("Limit", "disarmTurretsOnce", false, $"{oncePreDesc} {descDisarmTurrets} {oncePostDesc}");
-            berserkTurretsOnce = cfg.Bind("Limit", "berserkTurretsOnce", false, $"{oncePreDesc} {descBerserkTurrets} {oncePostDesc}");
-            shipLeaveOnce = cfg.Bind("Limit", "shipLeaveOnce", true, $"{oncePreDesc} {descShipLeave} {oncePostDesc}");
-            doNothingOnce = cfg.Bind("Limit", "doNothingOnce", false, $"{oncePreDesc} {descDoNothing} {oncePostDesc}");
-            enableChargeOnce = cfg.Bind("Limit", "enableChargeOnce", false, $"{oncePreDesc} {descEnableCharge} {oncePostDesc}");
-            zapOnce = cfg.Bind("Limit", "zapOnce", false, $"{oncePreDesc} {descZap} {oncePostDesc}");
-            swapDoorsOnce = cfg.Bind("Limit", "swapDoorsOnce", false, $"{oncePreDesc} {descSwapDoors} {oncePostDesc}");
-            powerOffOnce = cfg.Bind("Limit", "powerOffOnce", true, $"{oncePreDesc} {descPowerOff} {oncePostDesc}");
+            //limits
+            disarmTurretsOnce = cfg.Bind("Limits", "disarmTurretsOnce", false, $"{oncePreDesc} {descDisarmTurrets} {oncePostDesc}");
+            berserkTurretsOnce = cfg.Bind("Limits", "berserkTurretsOnce", false, $"{oncePreDesc} {descBerserkTurrets} {oncePostDesc}");
+            shipLeaveOnce = cfg.Bind("Limits", "shipLeaveOnce", true, $"{oncePreDesc} {descShipLeave} {oncePostDesc}");
+            doNothingOnce = cfg.Bind("Limits", "doNothingOnce", false, $"{oncePreDesc} {descDoNothing} {oncePostDesc}");
+            enableChargeOnce = cfg.Bind("Limits", "enableChargeOnce", false, $"{oncePreDesc} {descEnableCharge} {oncePostDesc}");
+            zapOnce = cfg.Bind("Limits", "zapOnce", false, $"{oncePreDesc} {descZap} {oncePostDesc}");
+            swapDoorsOnce = cfg.Bind("Limits", "swapDoorsOnce", false, $"{oncePreDesc} {descSwapDoors} {oncePostDesc}");
+            switchPowerOnce = cfg.Bind("Limits", "switchPowerOnce", true, $"{oncePreDesc} {descSwitchPower} {oncePostDesc}");
+            empOnce = cfg.Bind("Limits", "empOnce", true, $"{oncePreDesc} {descEMP} {oncePostDesc}");
 
             //timers
             disarmTurretsTimer = cfg.Bind("Timers", "disarmTurretsTimer", 60, "Time in seconds before Turrets are re-armed after being disarmed");
             berserkTurretsTimer = cfg.Bind("Timers", "berserkTurretsTimer", 60, "Time in seconds before Turrets exit berserk mode");
             shipLeaveTimer = cfg.Bind("Timers", "shipLeaveTimer", 120, "Time in seconds before the Ship leaves after being triggered to leave early");
+
+            //misc
+            lockDoorsOnEmp = cfg.Bind("Misc", "lockDoorsOnEmp", true, "If true, all automatic doors will be locked when the EMP action is triggered");
+            zapDamage = cfg.Bind("Misc", "zapDamage", 25, "Amount of damage dealt to the player when the Zap action is triggered");
+            hintPrice = cfg.Bind("Misc", "hintPrice", 50, "Credits required to purchase a hint from the terminal.");
+            resetAfterDay = cfg.Bind("Misc", "resetAfterDay", false, "If enabled, the switch combinations will be reset after each day.");
+
+
         }
     }
 }
