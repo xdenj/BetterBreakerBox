@@ -16,29 +16,48 @@ namespace BetterBreakerBox.Behaviours
 
         public NetworkVariable<int> hintPrice = new NetworkVariable<int>(50);
 
-        public NetworkVariable<int> comboOne = new NetworkVariable<int>(-1);
-        public NetworkVariable<int> comboTwo = new NetworkVariable<int>(-1);
-        public NetworkVariable<int> comboThree = new NetworkVariable<int>(-1);
-
-        public NetworkVariable<int> actionOne = new NetworkVariable<int>(-1);
-        public NetworkVariable<int> actionTwo = new NetworkVariable<int>(-1);
-        public NetworkVariable<int> actionThree = new NetworkVariable<int>(-1);
-
         public NetworkVariable<int> terminalOutputIndex = new NetworkVariable<int>(0);
-        public NetworkVariable<bool> hasBoughtThisRound = new NetworkVariable<bool>(false);
+        public NetworkVariable<bool> hasBoughtThisPeriod = new NetworkVariable<bool>(false);
+
+        public NetworkVariable<IntArrayWrapper> actions = new NetworkVariable<IntArrayWrapper>(new IntArrayWrapper());
+        public NetworkVariable<IntArrayWrapper> combos = new NetworkVariable<IntArrayWrapper>(new IntArrayWrapper());
 
 
         public void Reset()
         {
             SetHintPrice(50);
-            SetComboOne(-1);
-            SetComboTwo(-1);
-            SetComboThree(-1);
-            SetActionOne(-1);
-            SetActionTwo(-1);
-            SetActionThree(-1);
             SetTerminalOutputIndex(0);
-            SetHasBoughtThisRound(false);
+            SethasBoughtThisPeriod(false);
+        }
+
+        public void SetAction(int index, int value)
+        {
+            if (!BetterBreakerBox.isHost)
+            {
+                SetActionServerRpc(index, value);
+                return;
+            }
+            actions.Value.Data[index] = value;
+        }
+
+        public void InitializeActions(int length)
+        {
+            actions.Value.Data = new int[length];
+        }
+
+        public void SetCombo(int index, int value)
+        {
+            if (!BetterBreakerBox.isHost)
+            {
+                SetComboServerRpc(index, value);
+                return;
+            }
+            combos.Value.Data[index] = value;
+        }
+
+        public void InitializeCombos(int length)
+        {
+            combos.Value.Data = new int[length];
         }
         
         public void SetHintPrice(int value)
@@ -50,65 +69,6 @@ namespace BetterBreakerBox.Behaviours
             }
             hintPrice.Value = value;
         }
-        public void SetComboOne(int value)
-        {
-            if (!BetterBreakerBox.isHost)
-            {
-                SetComboOneServerRpc(value);
-                return;
-            }
-            comboOne.Value = value;
-        }
-
-        public void SetComboTwo(int value)
-        {
-            if (!BetterBreakerBox.isHost)
-            {
-                SetComboTwoServerRpc(value);
-                return;
-            }
-            comboTwo.Value = value;
-        }
-
-        public void SetComboThree(int value)
-        {
-            if (!BetterBreakerBox.isHost)
-            {
-                SetComboThreeServerRpc(value);
-                return;
-            }
-            comboThree.Value = value;
-        }
-
-        public void SetActionOne(int value)
-        {
-            if (!BetterBreakerBox.isHost)
-            {
-                SetActionOneServerRpc(value);
-                return;
-            }
-            actionOne.Value = value;
-        }
-
-        public void SetActionTwo(int value)
-        {
-            if (!BetterBreakerBox.isHost)
-            {
-                SetActionTwoServerRpc(value);
-                return;
-            }
-            actionTwo.Value = value;
-        }
-
-        public void SetActionThree(int value)
-        {
-            if (!BetterBreakerBox.isHost)
-            {
-                SetActionThreeServerRpc(value);
-                return;
-            }
-            actionThree.Value = value;
-        }
 
         public void SetTerminalOutputIndex(int value)
         {
@@ -119,14 +79,14 @@ namespace BetterBreakerBox.Behaviours
             }
             terminalOutputIndex.Value = value;
         }
-        public void SetHasBoughtThisRound(bool value)
+        public void SethasBoughtThisPeriod(bool value)
         {
             if (!BetterBreakerBox.isHost)
             {
-                SetHasBoughtThisRoundServerRpc(value);
+                SethasBoughtThisPeriodServerRpc(value);
                 return;
             }
-            hasBoughtThisRound.Value = value;
+            hasBoughtThisPeriod.Value = value;
         }
 
         public void SyncGroupCredits(int credits)
@@ -181,6 +141,12 @@ namespace BetterBreakerBox.Behaviours
             localPlayer.statusEffectAudio.PlayOneShot(charger.zapAudio.clip);
         }
 
+        [ClientRpc]
+        public void PrepareCommandClientRpc()
+        {
+            BetterBreakerBox.Instance.PrepareCommand(hintPrice.Value);
+        }
+
         // RPC to increment the terminalOutputIndex
         [ServerRpc(RequireOwnership = false)]
         public void SetTerminalOutputIndexServerRpc(int value)
@@ -188,11 +154,11 @@ namespace BetterBreakerBox.Behaviours
             terminalOutputIndex.Value = value;
         }
 
-        // RPC to set hasBoughtThisRound
+        // RPC to set hasBoughtThisPeriod
         [ServerRpc(RequireOwnership = false)]
-        public void SetHasBoughtThisRoundServerRpc(bool status)
+        public void SethasBoughtThisPeriodServerRpc(bool status)
         {
-            hasBoughtThisRound.Value = status;
+            hasBoughtThisPeriod.Value = status;
         }
 
         [ServerRpc(RequireOwnership = false)]
@@ -203,48 +169,28 @@ namespace BetterBreakerBox.Behaviours
         }
 
         [ServerRpc(RequireOwnership = false)]
-        public void SetComboOneServerRpc(int value)
-        {
-            comboOne.Value = value;
-        }
-
-        [ServerRpc(RequireOwnership = false)]
-        public void SetComboTwoServerRpc(int value)
-        {
-            comboTwo.Value = value;
-        }
-
-        [ServerRpc(RequireOwnership = false)]
-        public void SetComboThreeServerRpc(int value)
-        {
-            comboThree.Value = value;
-        }
-
-        [ServerRpc(RequireOwnership = false)]
-        public void SetActionOneServerRpc(int value)
-        {
-            actionOne.Value = value;
-        }
-
-        [ServerRpc(RequireOwnership = false)]
-        public void SetActionTwoServerRpc(int value)
-        {
-            actionTwo.Value = value;
-        }
-
-        [ServerRpc(RequireOwnership = false)]
-        public void SetActionThreeServerRpc(int value)
-        {
-            actionThree.Value = value;
-        }
-
-        [ServerRpc(RequireOwnership = false)]
         public void SetHintPriceServerRpc(int value)
         {
             hintPrice.Value = value;
         }
 
+        [ServerRpc(RequireOwnership = false)]
+        public void SetActionServerRpc(int index, int value)
+        {
+            actions.Value.Data[index] = value;
+        }
 
+        [ServerRpc(RequireOwnership = false)]
+        public void SetComboServerRpc(int index, int value)
+        {
+            combos.Value.Data[index] = value;
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        public void PrepareCommandServerRpc()
+        {
+            PrepareCommandClientRpc();
+        }
 
         void Update()
         {
@@ -254,7 +200,9 @@ namespace BetterBreakerBox.Behaviours
 
             if (BetterBreakerBox.DisarmTurrets)
             {
-                DisplayTimerClientRpc("Turrets re-arming in: ", disarmTurretsTimer, BetterBreakerBoxConfig.disarmTurretsTimer.Value);
+                #if DEBUG 
+                    DisplayTimerClientRpc("Turrets re-arming in: ", disarmTurretsTimer, BetterBreakerBoxConfig.disarmTurretsTimer.Value); 
+                #endif
                 disarmTurretsTimer -= Time.deltaTime; //decrement timer
                 if (disarmTurretsTimer <= 0f)
                 {
@@ -262,23 +210,29 @@ namespace BetterBreakerBox.Behaviours
                     BetterBreakerBox.DisarmTurrets = false;
                     BetterBreakerBox.ActionLock = false;
                     disarmTurretsTimer = BetterBreakerBoxConfig.disarmTurretsTimer.Value;
-                    DestroyTimerObjectClientRpc();
-                    DisplayActionMessageClientRpc("<color=green>Power restored!</color>", "Turrets back online and operational.", false);
+                    #if DEBUG
+                        DestroyTimerObjectClientRpc();
+                        DisplayActionMessageClientRpc("<color=green>Power restored!</color>", "Turrets back online and operational.", false);
+                    #endif
                 }
                 return;
             }
 
             if (BetterBreakerBox.BerserkTurrets)
             {
-                DisplayTimerClientRpc("Turrets exiting Berserk mode in: ", berserkTurretsTimer, BetterBreakerBoxConfig.berserkTurretsTimer.Value);
+                #if DEBUG
+                    DisplayTimerClientRpc("Turrets exiting Berserk mode in: ", berserkTurretsTimer, BetterBreakerBoxConfig.berserkTurretsTimer.Value);
+                #endif
                 berserkTurretsTimer -= Time.deltaTime;
                 if (berserkTurretsTimer <= 0f)
                 {
                     BetterBreakerBox.BerserkTurrets = false;
                     BetterBreakerBox.ActionLock = false;
                     berserkTurretsTimer = BetterBreakerBoxConfig.berserkTurretsTimer.Value;
-                    DestroyTimerObjectClientRpc();
-                    DisplayActionMessageClientRpc("Information", "Threat neutralized, Turrets returning to regular operation.", false);
+                    #if DEBUG
+                        DestroyTimerObjectClientRpc();
+                        DisplayActionMessageClientRpc("Information", "Threat neutralized, Turrets returning to regular operation.", false);
+                    #endif
                 }
                 return;
             }
@@ -323,16 +277,16 @@ namespace BetterBreakerBox.Behaviours
 
 
     [Serializable]
-    public class StringArrayWrapper : INetworkSerializable
+    public class IntArrayWrapper : INetworkSerializable
     {
-        public string[] Data;
+        public int[] Data;
 
-        public StringArrayWrapper()
+        public IntArrayWrapper()
         {
-            Data = new string[0]; // Initialize with empty array to avoid null issues.
+            Data = new int[0]; // Initialize with empty array to avoid null issues.
         }
 
-        public StringArrayWrapper(string[] data)
+        public IntArrayWrapper(int[] data)
         {
             Data = data;
         }
@@ -346,42 +300,19 @@ namespace BetterBreakerBox.Behaviours
             // Resize the array when deserializing
             if (serializer.IsReader)
             {
-                Data = new string[length];
+                Data = new int[length];
             }
 
             // Serialize each element of the array
             for (int i = 0; i < length; i++)
             {
-                string element = Data[i];
+                int element = Data[i];
                 serializer.SerializeValue(ref element);
                 if (serializer.IsReader)
                 {
                     Data[i] = element;
                 }
             }
-        }
-    }
-
-
-    [Serializable]
-    public class StringWrapper : INetworkSerializable
-    {
-        public string Data;
-
-        public StringWrapper()
-        {
-            Data = ""; // Initialize with an empty string to avoid null issues.
-        }
-
-        public StringWrapper(string data)
-        {
-            Data = data;
-        }
-
-        public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
-        {
-            // Serialize the string Data
-            serializer.SerializeValue(ref Data);
         }
     }
 }

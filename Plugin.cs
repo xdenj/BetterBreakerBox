@@ -14,9 +14,10 @@ using System.Reflection;
 using System.Text;
 using TMPro;
 using UnityEngine;
+using GameNetcodeStuff;
 using TerminalApi.Classes;
 using static TerminalApi.TerminalApi;
-using GameNetcodeStuff;
+
 
 namespace BetterBreakerBox
 {
@@ -100,7 +101,6 @@ namespace BetterBreakerBox
             InitializePrefabs();
             logger.LogInfo($"{MyPluginInfo.PLUGIN_GUID}-{MyPluginInfo.PLUGIN_VERSION} has been loaded!");
 
-            AddCommand("breakerbox", new CommandInfo { Title = "breakerbox", Category = "other", Description = "Retrieve entries of the Facility's Handbook [50 credits]", DisplayTextSupplier = OnBreakerBoxCommand });
         }
 
         private void indexToActionInit()
@@ -156,144 +156,74 @@ namespace BetterBreakerBox
             }
         }
 
+        internal void PrepareCommand(int price)
+        {
+            AddCommand("breakerbox", new CommandInfo { Title = "breakerbox", Category = "other", Description = $"Retrieve entries of the Facility's Handbook [{Math.Clamp(price, 0, Int32.MaxValue)} credits]", DisplayTextSupplier = OnBreakerBoxCommand });
+
+        }
+
         public string OnBreakerBoxCommand()
         {
-            string combosOne = "";
-            string combosTwo = "";
-            string combosThree = "";
-            string actionOne = "";
-            string actionTwo = "";
-            string actionThree = "";
+            var terminal = FindObjectOfType<Terminal>();
             string output = "";
-
-            string terminalPrePreText = "<color=red>Already retrieved one entry this round.\nTry again next round!</color>\n\n";
-            string terminalPostText = "\n\n<color=red>Insufficient credits to retrieve entries from the Facility Handbook.</color>\n\n";
-            string terminalPreText =
+            string terminalHasBought = "<color=red>Already retrieved entries this period.\nTry again next period!</color>\n\n";
+            string terminalInsufficientCredits = "\n\n<color=red>Insufficient credits to retrieve entries from the Facility Handbook.</color>\n\n";
+            string terminalDescription =
                 "<color=blue><u>-- Facility Handbook --</u></color>\n\n" +
                 "Breaker Box:\n" +
                 "Initial inspection of the Facility's wiring has revealed that the previous electrician got a bit...distracted.\n" +
                 "The breaker box is a mess, and the switches are not labeled. In their stead the Company has decided to promote you to Electrician Specialist!!! We expect you to see to it that the breaker box is fully functional and in pristine condition.\n" +
                 "We have graciously supplied you with notes from the previous electrician. We have good faith that you won't let The Company down like the previous disappointment. You wouldn't want us to instate our disciplinary measures.\n\n";
-            var terminal = FindObjectOfType<Terminal>();
+
 
             if (BetterBreakerBoxManager.Instance is { } manager)
             {
+                bool hasBoughtThisPeriod = manager.hasBoughtThisPeriod.Value;
                 int price = manager.hintPrice.Value;
-                int index = manager.terminalOutputIndex.Value;
-                bool hasBoughtThisRound = manager.hasBoughtThisRound.Value;
-                if (hasBoughtThisRound)
+                bool hasSufficientCredits = terminal.groupCredits >= price;
+                int limit = manager.terminalOutputIndex.Value;
+                double randomNumber = new System.Random().NextDouble();
+                int nextLimit = randomNumber < 0.4 ? 1 : (randomNumber < 0.7 ? 2 : (randomNumber < 0.9 ? 3 : 4));
+
+                int[] actions = manager.actions.Value.Data;
+                int[] combos = manager.combos.Value.Data;
+
+                if (!hasBoughtThisPeriod)
                 {
-                    index = index - 1;
+                    if (hasSufficientCredits)
+                    {
+                        manager.SyncGroupCredits(terminal.groupCredits - price);
+                        manager.SethasBoughtThisPeriod(true);
+                        limit = limit + nextLimit;
+                        manager.SetTerminalOutputIndex(limit);
+                    }
                 }
 
-                switch (index)
+                if (actions.Length > 0 && combos.Length > 0)
                 {
-                    case 0:
-                        if (terminal.groupCredits >= price || hasBoughtThisRound)
+                    for (int i = 0; i < limit; i++)
+                    {
+                        if (i >= actions.Length || i >= combos.Length)
                         {
-                            if (manager.actionOne.Value == -1)
-                            {
-                                actionOne = "No entries found in Company Handbook";
-                                combosOne = "";
-                            }
-                            else
-                            {
-                                actionOne = indexToAction[manager.actionOne.Value] + ": ";
-                                combosOne = IntToCombos(manager.comboOne.Value);
-                            }
-                            output = actionOne + combosOne;
+                            output = output + "No more entries available.\n";
+                            break;
                         }
-
-                        break;
-
-                    case 1:
-                        if (manager.actionOne.Value == -1)
-                        {
-                            actionOne = "No entries found in Company Handbook";
-                            combosOne = "";
-                        }
-                        else
-                        {
-                            actionOne = indexToAction[manager.actionOne.Value] + ": ";
-                            combosOne = IntToCombos(manager.comboOne.Value);
-                        }
-                        if (terminal.groupCredits >= price || hasBoughtThisRound)
-                        {
-                            if (manager.actionTwo.Value == -1)
-                            {
-                                actionTwo = "No entries found in Company Handbook";
-                                combosTwo = "";
-                            }
-                            else
-                            {
-                                actionTwo = indexToAction[manager.actionTwo.Value] + ": ";
-                                combosTwo = IntToCombos(manager.comboTwo.Value);
-                            }
-                        }
-                        output = actionOne + combosOne + "\n" + actionTwo + combosTwo;
-                        break;
-
-                    case 2:
-                        if (manager.actionOne.Value == -1)
-                        {
-                            actionOne = "No entries found in Company Handbook";
-                            combosOne = "";
-                        }
-                        else
-                        {
-                            actionOne = indexToAction[manager.actionOne.Value] + ": ";
-                            combosOne = IntToCombos(manager.comboOne.Value);
-                        }
-                        if (manager.actionTwo.Value == -1)
-                        {
-                            actionTwo = "No entries found in Company Handbook";
-                            combosTwo = "";
-                        }
-                        else
-                        {
-                            actionTwo = indexToAction[manager.actionTwo.Value] + ": ";
-                            combosTwo = IntToCombos(manager.comboTwo.Value);
-                        }
-                        if (terminal.groupCredits >= price || hasBoughtThisRound)
-                        {
-                            if (manager.actionThree.Value == -1)
-                            {
-                                actionThree = "No entries found in Company Handbook";
-                                combosThree = "";
-                            }
-                            else
-                            {
-                                actionThree = indexToAction[manager.actionThree.Value] + ": ";
-                                combosThree = IntToCombos(manager.comboThree.Value);
-                            }
-                        }
-                        output = actionOne + combosOne + "\n" + actionTwo + combosTwo + "\n" + actionThree + combosThree;
-                        break;
+                        output = output + $"<color=orange>{indexToAction[actions[i]]}: {IntToCombos(combos[i])}</color>\n";
+                    }
                 }
-                output = "<color=orange>" + output + "</color>";
+                output = terminalDescription + output;
 
-                if (hasBoughtThisRound)
+                if (hasBoughtThisPeriod)
                 {
-                    output = terminalPrePreText + terminalPreText + output;
+                    output = terminalHasBought + output;
                 }
-                else if (terminal.groupCredits < price)
+                else if (!hasSufficientCredits)
                 {
-                    output = terminalPreText + output + terminalPostText;
+                    output = output + terminalInsufficientCredits;
                 }
-                else
-                {
-                    output = terminalPreText + output;
-                    manager.SetHasBoughtThisRound(true);
-                    manager.SyncGroupCredits(terminal.groupCredits - price);
-                    manager.SetTerminalOutputIndex(manager.terminalOutputIndex.Value + 1);
-                }
-                return output + "\n\n";
+
             }
-            else
-            {
-                return "Error retrieving terminal output.";
-            }
-
+            return output;
         }
 
         internal static void ResetNewDay()
@@ -305,11 +235,6 @@ namespace BetterBreakerBox
             ActionLock = false;
             LocalPlayerTriggered = false;
             isBreakerBoxEnabled = true;
-
-            if (BetterBreakerBoxManager.Instance is { } betterBreakerBoxManagerInstance)
-            {
-                betterBreakerBoxManagerInstance.SetHasBoughtThisRound(false);
-            }
             ResetActions();
         }
 
@@ -319,12 +244,8 @@ namespace BetterBreakerBox
             if (BetterBreakerBoxManager.Instance is { } manager)
             {
                 manager.SetTerminalOutputIndex(0);
-                manager.SetComboOne(0);
-                manager.SetComboTwo(0);
-                manager.SetComboThree(0);
-                manager.SetActionOne(0);
-                manager.SetActionTwo(0);
-                manager.SetActionThree(0);
+                manager.InitializeActions(0);
+                manager.InitializeCombos(0);
             }
             ResetNewDay();
 
@@ -378,15 +299,20 @@ namespace BetterBreakerBox
             }
 
             //actionsDefinitions.Add(new ActionDefinition(SwitchAction action, int weight, bool assignOnce, string headerText, string bodyText, bool isWarning, bool displayMessage));
-            actionsDefinitions.Add(new ActionDefinition(TurretsDisarm, Math.Clamp(BetterBreakerBoxConfig.weightDisarmTurrets.Value, 0, int.MaxValue), BetterBreakerBoxConfig.disarmTurretsOnce.Value, "<color=red>Critical power loss!</color>", "Turrets temporarily disarmed.", false, true));
-            actionsDefinitions.Add(new ActionDefinition(TurretsBerserk, Math.Clamp(BetterBreakerBoxConfig.weightBerserkTurrets.Value, 0, int.MaxValue), BetterBreakerBoxConfig.berserkTurretsOnce.Value, "<color=red>Security breach detected!", "Activating Turret berserk mode for enhanced Facility protection!", true, true));
+            bool displayMessage = false;
+#if DEBUG
+            displayMessage = true;
+#endif
+
+            actionsDefinitions.Add(new ActionDefinition(TurretsDisarm, Math.Clamp(BetterBreakerBoxConfig.weightDisarmTurrets.Value, 0, int.MaxValue), BetterBreakerBoxConfig.disarmTurretsOnce.Value, "<color=red>Critical power loss!</color>", "Turrets temporarily disarmed.", false, displayMessage));
+            actionsDefinitions.Add(new ActionDefinition(TurretsBerserk, Math.Clamp(BetterBreakerBoxConfig.weightBerserkTurrets.Value, 0, int.MaxValue), BetterBreakerBoxConfig.berserkTurretsOnce.Value, "<color=red>Security breach detected!", "Activating Turret berserk mode for enhanced Facility protection!", true, displayMessage));
             actionsDefinitions.Add(new ActionDefinition(ShipLeave, Math.Clamp(BetterBreakerBoxConfig.weightShipLeave.Value, 0, int.MaxValue), BetterBreakerBoxConfig.shipLeaveOnce.Value, "Electromagnetic anomaly!", "The Company strongly advises all Employees to evacuate to the Autopilot Ship immediately!", true, true));
-            actionsDefinitions.Add(new ActionDefinition(DoNothing, weightDoNothing, doNothingOnce, "LOL", "We're doing nothing", false, true));
-            actionsDefinitions.Add(new ActionDefinition(ChargeEnable, Math.Clamp(BetterBreakerBoxConfig.weightEnableCharge.Value, 0, int.MaxValue), BetterBreakerBoxConfig.enableChargeOnce.Value, "<color=blue>Charging enabled!</color>", "Battery-powered items can now be charged at the Breaker Box.", false, true));
-            actionsDefinitions.Add(new ActionDefinition(Zap, Math.Clamp(BetterBreakerBoxConfig.weightZap.Value, 0, int.MaxValue), BetterBreakerBoxConfig.zapOnce.Value, "<color=red>ZAP!</color>", "Player has been zapped!", true, true));
-            actionsDefinitions.Add(new ActionDefinition(SwapDoors, Math.Clamp(BetterBreakerBoxConfig.weightSwapDoors.Value, 0, int.MaxValue), BetterBreakerBoxConfig.swapDoorsOnce.Value, "<color=blue>Doors swapped!</color>", "Big doors have been swapped.", false, true));
-            actionsDefinitions.Add(new ActionDefinition(SwitchPower, Math.Clamp(BetterBreakerBoxConfig.weightSwitchPower.Value, 0, int.MaxValue), BetterBreakerBoxConfig.switchPowerOnce.Value, "<color=red>Power off!</color>", "Facility power has been turned off.", true, false));
-            actionsDefinitions.Add(new ActionDefinition(EMP, Math.Clamp(BetterBreakerBoxConfig.weightEMP.Value, 0, int.MaxValue), BetterBreakerBoxConfig.empOnce.Value, "<color=red>EMP!</color>", "EMP has been activated. All electronic systems offline", true, true));
+            actionsDefinitions.Add(new ActionDefinition(DoNothing, weightDoNothing, doNothingOnce, "LOL", "We're doing nothing", false, displayMessage));
+            actionsDefinitions.Add(new ActionDefinition(ChargeEnable, Math.Clamp(BetterBreakerBoxConfig.weightEnableCharge.Value, 0, int.MaxValue), BetterBreakerBoxConfig.enableChargeOnce.Value, "<color=blue>Charging enabled!</color>", "Battery-powered items can now be charged at the Breaker Box.", false, displayMessage));
+            actionsDefinitions.Add(new ActionDefinition(Zap, Math.Clamp(BetterBreakerBoxConfig.weightZap.Value, 0, int.MaxValue), BetterBreakerBoxConfig.zapOnce.Value, "<color=red>ZAP!</color>", "Player has been zapped!", true, displayMessage));
+            actionsDefinitions.Add(new ActionDefinition(SwapDoors, Math.Clamp(BetterBreakerBoxConfig.weightSwapDoors.Value, 0, int.MaxValue), BetterBreakerBoxConfig.swapDoorsOnce.Value, "<color=blue>Doors swapped!</color>", "Big doors have been swapped.", false, displayMessage));
+            actionsDefinitions.Add(new ActionDefinition(SwitchPower, Math.Clamp(BetterBreakerBoxConfig.weightSwitchPower.Value, 0, int.MaxValue), BetterBreakerBoxConfig.switchPowerOnce.Value, "<color=red>Power off!</color>", "Facility power has been turned off.", true, displayMessage));
+            actionsDefinitions.Add(new ActionDefinition(EMP, Math.Clamp(BetterBreakerBoxConfig.weightEMP.Value, 0, int.MaxValue), BetterBreakerBoxConfig.empOnce.Value, "<color=red>EMP!</color>", "EMP has been activated. All electronic systems offline", true, displayMessage));
             // Add other actions here...
         }
 
@@ -511,51 +437,50 @@ namespace BetterBreakerBox
             var filteredActions = switchActionMap
                 .Where(pair => pair.Value.Action.Method.Name != "DoNothing" && !returnedActions.Contains(pair.Value))
                 .ToList();
-            for (int i = 0; i < 3; i++)
+            if (filteredActions.Count > 0)
             {
-                if (filteredActions.Count != 0)
-                {  // Get a random action from the filtered list
-                    var random = new System.Random();
-                    var randomAction = filteredActions[random.Next(filteredActions.Count)].Value;
-
-                    // Add this action to the set of returned actions
-                    returnedActions.Add(randomAction);
-
-                    // Gather all switch combinations for this action
-                    var combinations = switchActionMap
-                        .Where(pair => pair.Value == randomAction)
-                        .Select(pair => pair.Key)
-                        .ToList();
-
-                    // Return the formatted string
-                    int result = 0;
-                    foreach (var combination in combinations)
+                if (BetterBreakerBoxManager.Instance is { } manager)
+                {
+                    manager.InitializeActions(filteredActions.Count);
+                    manager.InitializeCombos(filteredActions.Count);
+                    for (int i = 0; i < filteredActions.Count; i++)
                     {
-                        // Convert the binary string to a decimal integer
-                        int value = Convert.ToInt32(combination, 2);
+                        // Get a random action from the filtered list
+                        var random = new System.Random();
+                        var randomAction = filteredActions[random.Next(filteredActions.Count)].Value;
 
-                        // Set the corresponding bit in the result integer
-                        // Shift 1 left by (value - 1) because bit positions are 0-based
-                        result |= (1 << (value - 1));
-                    }
-                    if (BetterBreakerBoxManager.Instance is { } manager)
-                    {
-                        switch (i)
+                        // Add this action to the set of returned actions
+                        returnedActions.Add(randomAction);
+
+                        // Gather all switch combinations for this action
+                        var combinations = switchActionMap
+                            .Where(pair => pair.Value == randomAction)
+                            .Select(pair => pair.Key)
+                            .ToList();
+
+                        // Return the formatted string
+                        int result = 0;
+                        foreach (var combination in combinations)
                         {
-                            case 0:
-                                manager.SetComboOne(result);
-                                manager.SetActionOne(actionToIndex[randomAction.Action.Method.Name]);
-                                break;
-                            case 1:
-                                manager.SetComboTwo(result);
-                                manager.SetActionTwo(actionToIndex[randomAction.Action.Method.Name]);
-                                break;
-                            case 2:
-                                manager.SetComboThree(result);
-                                manager.SetActionThree(actionToIndex[randomAction.Action.Method.Name]);
-                                break;
+                            // Convert the binary string to a decimal integer
+                            int value = Convert.ToInt32(combination, 2);
+
+                            // Set the corresponding bit in the result integer
+                            // Shift 1 left by (value - 1) because bit positions are 0-based
+                            result |= (1 << (value - 1));
                         }
+                        manager.SetAction(index: i, value: actionToIndex[randomAction.Action.Method.Name]);
+                        manager.SetCombo(index: i, value: result);
                     }
+                }
+            }
+            else
+            {
+                if (BetterBreakerBoxManager.Instance is { } manager)
+                {
+                    manager.InitializeActions(1);
+                    manager.SetAction(index: 0, value: -1);
+                    manager.SetCombo(index: 0, value: -1);
                 }
             }
         }
@@ -570,6 +495,7 @@ namespace BetterBreakerBox
                 {
                     // If set, calculate the corresponding binary string
                     string combo = Convert.ToString(i + 1, 2).PadLeft(5, '0');
+                    combo = combo[^5..]; // Take the last 5 characters
                     if (result.Length > 0)
                     {
                         result.Append(", ");
@@ -663,10 +589,17 @@ namespace BetterBreakerBox
             if (breakerBoxInstance.GetComponent<ChargingManager>() == null)
             {
                 breakerBoxInstance.gameObject.AddComponent<ChargingManager>();
+                PlayerControllerB localPlayer = GameNetworkManager.Instance.localPlayerController;
+                var unlockables = StartOfRound.Instance.unlockablesList.unlockables;
+                var teleporterPrefab = unlockables.Find(u => u.unlockableName == "Teleporter").prefabObject;
+                var teleporter = teleporterPrefab.GetComponent<ShipTeleporter>();
+                localPlayer.statusEffectAudio.PlayOneShot(teleporter.buttonPressSFX);
             }
             else
             {
+#if DEBUG
                 BetterBreakerBoxManager.Instance.DisplayActionMessageClientRpc("Information", "Charging is already enabled.", false);
+#endif
             }
             ActionLock = false;
         }

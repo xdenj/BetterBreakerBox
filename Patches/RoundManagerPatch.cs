@@ -2,6 +2,7 @@
 using BetterBreakerBox.Configs;
 using HarmonyLib;
 using System;
+using TerminalApi.Classes;
 using Unity.Netcode;
 using UnityEngine;
 using Object = UnityEngine.Object;
@@ -17,6 +18,10 @@ namespace BetterBreakerBox.Patches
         {
             BetterBreakerBox.hasRandomizedActions = false;
             BetterBreakerBox.isHost = GameNetworkManager.Instance.isHostingGame;
+            if (!BetterBreakerBox.isHost)
+            {
+                BetterBreakerBoxManager.Instance.PrepareCommandServerRpc();
+            }
             if (!__instance.IsOwner) return;
             if (BetterBreakerBoxManager.Instance != null)
             {
@@ -43,10 +48,12 @@ namespace BetterBreakerBox.Patches
             if ((TimeOfDay.Instance.daysUntilDeadline == 3 && !BetterBreakerBox.hasRandomizedActions) || (BetterBreakerBoxConfig.resetAfterDay.Value && !BetterBreakerBox.hasRandomizedActions && TimeOfDay.Instance.daysUntilDeadline != 3))
             {
                 BetterBreakerBoxManager.Instance.Reset();
+
                 BetterBreakerBox.Instance.RandomizeActions();//randomize actions at beginning of first day
                 BetterBreakerBox.Instance.PrepareTerminalHints();
                 
-                BetterBreakerBox.UpdateHintPrice(BetterBreakerBoxConfig.hintPrice.Value);
+                BetterBreakerBox.UpdateHintPrice(Math.Clamp(BetterBreakerBoxConfig.hintPrice.Value, 0, Int32.MaxValue));
+                BetterBreakerBoxManager.Instance.PrepareCommandClientRpc();
                 BetterBreakerBox.hasRandomizedActions = true;
                 BetterBreakerBox.logger.LogDebug($"Randomized actions at beginning of {(BetterBreakerBoxConfig.resetAfterDay.Value ? "day" : "round")}");
 
