@@ -36,7 +36,7 @@ namespace BetterBreakerBox.Patches
                             if (actionDef.DisplayMessage)
                             {
                                 BetterBreakerBoxManager.Instance?.DisplayActionMessageClientRpc(actionDef.HeaderText, actionDef.BodyText, actionDef.IsWarning);
-                            }                            
+                            }
                             // Now, invoke the action
                             actionDef.Action.Invoke();
                         }

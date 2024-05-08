@@ -13,6 +13,9 @@ namespace BetterBreakerBox.Behaviours
         internal float leaveShipTimer = Math.Clamp(BetterBreakerBoxConfig.shipLeaveTimer.Value, 0f, float.MaxValue);
         internal float disarmTurretsTimer = Math.Clamp(BetterBreakerBoxConfig.disarmTurretsTimer.Value, 0f, float.MaxValue);
         internal float berserkTurretsTimer = Math.Clamp(BetterBreakerBoxConfig.berserkTurretsTimer.Value, 0f, float.MaxValue);
+        internal bool timerStarted = false;
+        internal float startTime = 0f;
+        internal TimeOfDay timeOfDay;
 
         public NetworkVariable<int> hintPrice = new NetworkVariable<int>(50);
 
@@ -59,7 +62,7 @@ namespace BetterBreakerBox.Behaviours
         {
             combos.Value.Data = new int[length];
         }
-        
+
         public void SetHintPrice(int value)
         {
             if (!BetterBreakerBox.isHost)
@@ -133,7 +136,7 @@ namespace BetterBreakerBox.Behaviours
             if (!BetterBreakerBox.LocalPlayerTriggered) return;
             BetterBreakerBox.logger.LogDebug("Zapping local player");
             PlayerControllerB localPlayer = GameNetworkManager.Instance.localPlayerController;
-            
+
             HUDManager.Instance.ShakeCamera(ScreenShakeType.Big);
             localPlayer.DamagePlayer(damage, false);
             localPlayer.beamUpParticle.Play();
@@ -197,52 +200,77 @@ namespace BetterBreakerBox.Behaviours
             if (!BetterBreakerBox.isHost) return; //only the host should be able to trigger actions
             if (!BetterBreakerBox.isBreakerBoxEnabled) return; //don't do anything if the breaker box is disabled
             if (!BetterBreakerBox.LeaveShip && !BetterBreakerBox.DisarmTurrets && !BetterBreakerBox.BerserkTurrets) return; //no action to trigger
-
+            if (timeOfDay == null)
+            {
+                timeOfDay = TimeOfDay.Instance;
+            }
+            float remainingTime = timeOfDay.totalTime - timeOfDay.currentDayTime;
             if (BetterBreakerBox.DisarmTurrets)
             {
-                #if DEBUG 
-                    DisplayTimerClientRpc("Turrets re-arming in: ", disarmTurretsTimer, BetterBreakerBoxConfig.disarmTurretsTimer.Value); 
-                #endif
+                if (!timerStarted)
+                {
+                    disarmTurretsTimer = disarmTurretsTimer > remainingTime ? remainingTime : disarmTurretsTimer;
+                    timerStarted = true;
+                    startTime = disarmTurretsTimer;
+                }
+#if DEBUG
+                DisplayTimerClientRpc("Turrets re-arming in: ", disarmTurretsTimer, startTime);
+#endif
                 disarmTurretsTimer -= Time.deltaTime; //decrement timer
                 if (disarmTurretsTimer <= 0f)
                 {
                     //Resetting flags and timer after the timer has expired
+                    timerStarted = false;
                     BetterBreakerBox.DisarmTurrets = false;
                     BetterBreakerBox.ActionLock = false;
                     disarmTurretsTimer = BetterBreakerBoxConfig.disarmTurretsTimer.Value;
-                    #if DEBUG
-                        DestroyTimerObjectClientRpc();
-                        DisplayActionMessageClientRpc("<color=green>Power restored!</color>", "Turrets back online and operational.", false);
-                    #endif
+#if DEBUG
+                    DestroyTimerObjectClientRpc();
+                    DisplayActionMessageClientRpc("<color=green>Power restored!</color>", "Turrets back online and operational.", false);
+#endif
                 }
                 return;
             }
 
             if (BetterBreakerBox.BerserkTurrets)
             {
-                #if DEBUG
-                    DisplayTimerClientRpc("Turrets exiting Berserk mode in: ", berserkTurretsTimer, BetterBreakerBoxConfig.berserkTurretsTimer.Value);
-                #endif
+                if (!timerStarted)
+                {
+                    berserkTurretsTimer = berserkTurretsTimer > remainingTime ? remainingTime : berserkTurretsTimer;
+                    startTime = berserkTurretsTimer;
+                    timerStarted = true;
+                }
+#if DEBUG
+                DisplayTimerClientRpc("Turrets exiting Berserk mode in: ", berserkTurretsTimer, startTime);
+#endif
                 berserkTurretsTimer -= Time.deltaTime;
                 if (berserkTurretsTimer <= 0f)
                 {
+                    timerStarted = false;
                     BetterBreakerBox.BerserkTurrets = false;
                     BetterBreakerBox.ActionLock = false;
                     berserkTurretsTimer = BetterBreakerBoxConfig.berserkTurretsTimer.Value;
-                    #if DEBUG
-                        DestroyTimerObjectClientRpc();
-                        DisplayActionMessageClientRpc("Information", "Threat neutralized, Turrets returning to regular operation.", false);
-                    #endif
+#if DEBUG
+                    DestroyTimerObjectClientRpc();
+                    DisplayActionMessageClientRpc("Information", "Threat neutralized, Turrets returning to regular operation.", false);
+#endif
                 }
                 return;
             }
 
             if (BetterBreakerBox.LeaveShip)
             {
-                DisplayTimerClientRpc("Ship departs in: ", leaveShipTimer, BetterBreakerBoxConfig.shipLeaveTimer.Value);
+                if (!timerStarted)
+                {
+                    leaveShipTimer = leaveShipTimer > remainingTime ? remainingTime : leaveShipTimer;
+                    timerStarted = true;
+                    startTime = leaveShipTimer;
+                }
+                DisplayTimerClientRpc("Ship departs in: ", leaveShipTimer, startTime);
                 leaveShipTimer -= Time.deltaTime;
                 if (leaveShipTimer <= 0f)  // Move this condition up to catch when the timer first goes zero or negative
                 {
+                    timerStarted = false;
                     BetterBreakerBox.LeaveShip = false;
                     BetterBreakerBox.ActionLock = false;
                     leaveShipTimer = BetterBreakerBoxConfig.shipLeaveTimer.Value;

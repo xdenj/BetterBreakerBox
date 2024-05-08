@@ -4,8 +4,6 @@ namespace BetterBreakerBox.Configs
 {
     public class BetterBreakerBoxConfig
     {
-        
-
         public static ConfigEntry<int> weightDisarmTurrets;
         public static ConfigEntry<int> weightBerserkTurrets;
         public static ConfigEntry<int> weightShipLeave;
@@ -53,16 +51,17 @@ namespace BetterBreakerBox.Configs
             string weightPostDesc = "Higher weights make this action more likely to be assigned to one of the switch combinations, a weight of 0 will prevent the action from being assigned.";
             string oncePreDesc = "Select if the action of";
             string oncePostDesc = "should only be able to be assigned to one switch combination, regardless of the weight assigned to it.";
+            string timerPostDesc = "The configured time represents the maximum time. Should the remaining time of day be less than the configured time, the timer will be set to the remaining time of day instead.";
 
             //weights
-            weightDisarmTurrets = cfg.Bind("Weights", "weightDisarmTurrets", 2, $"{weightPreDesc} {descDisarmTurrets}. {weightPostDesc}");
-            weightBerserkTurrets = cfg.Bind("Weights", "weightBerserkTurrets", 2, $"{weightPreDesc} {descBerserkTurrets}. {weightPostDesc}");
+            weightDisarmTurrets = cfg.Bind("Weights", "weightDisarmTurrets", 15, $"{weightPreDesc} {descDisarmTurrets}. {weightPostDesc}");
+            weightBerserkTurrets = cfg.Bind("Weights", "weightBerserkTurrets", 10, $"{weightPreDesc} {descBerserkTurrets}. {weightPostDesc}");
             weightShipLeave = cfg.Bind("Weights", "weightShipLeave", 1, $"{weightPreDesc} {descShipLeave}. {weightPostDesc}");
-            weightDoNothing = cfg.Bind("Weights", "weightDoNothing", 20, $"{weightPreDesc} {descDoNothing}. {weightPostDesc}");
-            weightEnableCharge = cfg.Bind("Weights", "weightEnableCharge", 4, $"{weightPreDesc} {descEnableCharge}. {weightPostDesc}");
-            weightZap = cfg.Bind("Weights", "weightZap", 2, $"{weightPreDesc} {descZap}. {weightPostDesc}");
-            weightSwapDoors = cfg.Bind("Weights", "weightSwapDoors", 2, $"{weightPreDesc} {descSwapDoors}. {weightPostDesc}");
-            weightSwitchPower = cfg.Bind("Weights", "weightSwitchPower", 1, $"{weightPreDesc} {descSwitchPower}. {weightPostDesc}");
+            weightDoNothing = cfg.Bind("Weights", "weightDoNothing", 30, $"{weightPreDesc} {descDoNothing}. {weightPostDesc}");
+            weightEnableCharge = cfg.Bind("Weights", "weightEnableCharge", 10, $"{weightPreDesc} {descEnableCharge}. {weightPostDesc}");
+            weightZap = cfg.Bind("Weights", "weightZap", 20, $"{weightPreDesc} {descZap}. {weightPostDesc}");
+            weightSwapDoors = cfg.Bind("Weights", "weightSwapDoors", 20, $"{weightPreDesc} {descSwapDoors}. {weightPostDesc}");
+            weightSwitchPower = cfg.Bind("Weights", "weightSwitchPower", 20, $"{weightPreDesc} {descSwitchPower}. {weightPostDesc}");
             weightEMP = cfg.Bind("Weights", "weightEMP", 1, $"{weightPreDesc} {descEMP}. {weightPostDesc}");
 
             //limits
@@ -73,20 +72,20 @@ namespace BetterBreakerBox.Configs
             enableChargeOnce = cfg.Bind("Limits", "enableChargeOnce", false, $"{oncePreDesc} {descEnableCharge} {oncePostDesc}");
             zapOnce = cfg.Bind("Limits", "zapOnce", false, $"{oncePreDesc} {descZap} {oncePostDesc}");
             swapDoorsOnce = cfg.Bind("Limits", "swapDoorsOnce", false, $"{oncePreDesc} {descSwapDoors} {oncePostDesc}");
-            switchPowerOnce = cfg.Bind("Limits", "switchPowerOnce", true, $"{oncePreDesc} {descSwitchPower} {oncePostDesc}");
-            empOnce = cfg.Bind("Limits", "empOnce", true, $"{oncePreDesc} {descEMP} {oncePostDesc}");
+            switchPowerOnce = cfg.Bind("Limits", "switchPowerOnce", false, $"{oncePreDesc} {descSwitchPower} {oncePostDesc}");
+            empOnce = cfg.Bind("Limits", "empOnce", false, $"{oncePreDesc} {descEMP} {oncePostDesc}");
 
             //timers
-            disarmTurretsTimer = cfg.Bind("Timers", "disarmTurretsTimer", 60, "Time in seconds before Turrets are re-armed after being disarmed");
-            berserkTurretsTimer = cfg.Bind("Timers", "berserkTurretsTimer", 60, "Time in seconds before Turrets exit berserk mode");
-            shipLeaveTimer = cfg.Bind("Timers", "shipLeaveTimer", 120, "Time in seconds before the Ship leaves after being triggered to leave early");
+            disarmTurretsTimer = cfg.Bind("Timers", "disarmTurretsTimer", 30, $"Time in seconds before Turrets are re-armed after being disarmed. {timerPostDesc}");
+            berserkTurretsTimer = cfg.Bind("Timers", "berserkTurretsTimer", 30, $"Time in seconds before Turrets exit berserk mode. {timerPostDesc}");
+            shipLeaveTimer = cfg.Bind("Timers", "shipLeaveTimer", 120, $"Time in seconds before the Ship leaves after being triggered to leave early. {timerPostDesc}");
 
             //misc
-            lockDoorsOnEmp = cfg.Bind("Misc", "lockDoorsOnEmp", true, "If true, all automatic doors will be locked when the EMP action is triggered");
+            lockDoorsOnEmp = cfg.Bind("Misc", "lockDoorsOnEmp", false, "If true, all automatic doors will be locked when the EMP action is triggered");
             zapDamage = cfg.Bind("Misc", "zapDamage", 25, "Amount of damage dealt to the player when the Zap action is triggered");
             hintPrice = cfg.Bind("Misc", "hintPrice", 50, "Credits required to purchase a hint from the terminal.");
-            resetAfterDay = cfg.Bind("Misc", "resetAfterDay", false, "If enabled, the switch combinations will be reset after each day.");
-            ensureAction = cfg.Bind("Misc", "ensureAction", false, "If enabled, at least one instance of each action will be assigned to a switch combination, regardless of the weights assigned to them.");
+            resetAfterDay = cfg.Bind("Misc", "resetAfterDay", true, "If enabled, the switch combinations will be reset after each day.");
+            ensureAction = cfg.Bind("Misc", "ensureAction", true, "If enabled, each action with a weight greater than 0 is guaranteed to be assigned to at least one switch combination. The remaining actions will be assigned based on their weights.");
         }
     }
 }

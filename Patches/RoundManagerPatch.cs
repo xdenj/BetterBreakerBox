@@ -2,7 +2,6 @@
 using BetterBreakerBox.Configs;
 using HarmonyLib;
 using System;
-using TerminalApi.Classes;
 using Unity.Netcode;
 using UnityEngine;
 using Object = UnityEngine.Object;
@@ -51,7 +50,7 @@ namespace BetterBreakerBox.Patches
 
                 BetterBreakerBox.Instance.RandomizeActions();//randomize actions at beginning of first day
                 BetterBreakerBox.Instance.PrepareTerminalHints();
-                
+
                 BetterBreakerBox.UpdateHintPrice(Math.Clamp(BetterBreakerBoxConfig.hintPrice.Value, 0, Int32.MaxValue));
                 BetterBreakerBoxManager.Instance.PrepareCommandClientRpc();
                 BetterBreakerBox.hasRandomizedActions = true;
