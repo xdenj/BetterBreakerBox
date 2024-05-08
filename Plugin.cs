@@ -183,7 +183,7 @@ namespace BetterBreakerBox
                 bool hasSufficientCredits = terminal.groupCredits >= price;
                 int limit = manager.terminalOutputIndex.Value;
                 double randomNumber = new System.Random().NextDouble();
-                int nextLimit = randomNumber < 0.4 ? 1 : (randomNumber < 0.7 ? 2 : (randomNumber < 0.9 ? 3 : 4));
+                int nextLimit = randomNumber < 0.2 ? 1 : (randomNumber < 0.5 ? 2 : (randomNumber < 0.8 ? 3 : 4));
 
                 int[] actions = manager.actions.Value.Data;
                 int[] combos = manager.combos.Value.Data;
@@ -335,7 +335,40 @@ namespace BetterBreakerBox
             }
 
             int combinationCount = 32;
-            for (int i = 0; i < combinationCount; i++)
+            int currentCombination = 0;
+
+            // If the ensureAction flag is set, assign each action with weight > 0 to a combination
+            if (BetterBreakerBoxConfig.ensureAction.Value)
+            {
+                var actionsToAssign = weightedActions.Where(wa => wa.action.Weight > 0).ToList();
+
+                // Shuffle the actions to assign
+                actionsToAssign = actionsToAssign.OrderBy(a => rng.Next()).ToList();
+
+                foreach (var actionToAssign in actionsToAssign)
+                {
+                    string binaryKey = Convert.ToString(currentCombination++, 2).PadLeft(5, '0');
+                    switchActionMap[binaryKey] = actionToAssign.action;
+
+                    // If the action should only be assigned once, remove it from the list
+                    if (actionToAssign.action.AssignOnce)
+                    {
+                        weightedActions.RemoveAll(wa => wa.action == actionToAssign.action);
+
+                        // Recalculate the cumulative distribution without the removed action
+                        totalWeight -= actionToAssign.action.Weight;
+                        cumulative = 0;
+                        weightedActions = weightedActions.Select(wa =>
+                        {
+                            cumulative += wa.action.Weight / totalWeight;
+                            return (cumulative, wa.action);
+                        }).ToList();
+                    }
+                }
+            }
+
+            // Assign the remaining combinations based on weight
+            for (int i = currentCombination; i < combinationCount; i++)
             {
                 string binaryKey = Convert.ToString(i, 2).PadLeft(5, '0');
                 double randomValue = rng.NextDouble();
@@ -361,7 +394,6 @@ namespace BetterBreakerBox
                     }).ToList();
                 }
             }
-
 #if DEBUG
             //DEBUG Display of Actions mapped to switch combos and write them to a text file for persistent viewing
             var groupedByMethodName = switchActionMap
@@ -397,6 +429,7 @@ namespace BetterBreakerBox
             // Write to the file, overwriting any existing content
             File.WriteAllText(filePath, fileContent.ToString());
 #endif
+            returnedActions.Clear();
             PrepareTerminalHints();
         }
 
@@ -435,7 +468,7 @@ namespace BetterBreakerBox
             // Filter out DoNothing and already returned actions
             returnedActions.Clear();
             var filteredActions = switchActionMap
-                .Where(pair => pair.Value.Action.Method.Name != "DoNothing" && !returnedActions.Contains(pair.Value))
+                .Where(pair => pair.Value.Action.Method.Name != "DoNothing")
                 .ToList();
             if (filteredActions.Count > 0)
             {
@@ -443,8 +476,17 @@ namespace BetterBreakerBox
                 {
                     manager.InitializeActions(filteredActions.Count);
                     manager.InitializeCombos(filteredActions.Count);
-                    for (int i = 0; i < filteredActions.Count; i++)
+                    int counter = filteredActions.Count;
+                    for (int i = 0; i < counter; i++)
                     {
+                        filteredActions = filteredActions
+                            .Where(pair => !returnedActions.Contains(pair.Value))
+                            .ToList();
+                        counter = filteredActions.Count;
+                        if (counter < 1)
+                        {
+                            break;
+                        }
                         // Get a random action from the filtered list
                         var random = new System.Random();
                         var randomAction = filteredActions[random.Next(filteredActions.Count)].Value;

@@ -34,6 +34,7 @@ namespace BetterBreakerBox.Configs
         public static ConfigEntry<int> zapDamage;
         public static ConfigEntry<int> hintPrice;
         public static ConfigEntry<bool> resetAfterDay;
+        public static ConfigEntry<bool> ensureAction;
 
 
         public BetterBreakerBoxConfig(ConfigFile cfg)
@@ -85,8 +86,7 @@ namespace BetterBreakerBox.Configs
             zapDamage = cfg.Bind("Misc", "zapDamage", 25, "Amount of damage dealt to the player when the Zap action is triggered");
             hintPrice = cfg.Bind("Misc", "hintPrice", 50, "Credits required to purchase a hint from the terminal.");
             resetAfterDay = cfg.Bind("Misc", "resetAfterDay", false, "If enabled, the switch combinations will be reset after each day.");
-
-
+            ensureAction = cfg.Bind("Misc", "ensureAction", false, "If enabled, at least one instance of each action will be assigned to a switch combination, regardless of the weights assigned to them.");
         }
     }
 }

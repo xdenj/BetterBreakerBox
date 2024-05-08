@@ -1,7 +1,7 @@
 
 # BetterBreakerBox
 
-This mod adds new functionality to the Breaker Box by assigning actions to different combinations of breaker switches.
+This mod adds new functionality to the Breaker Box by assigning [actions](#Actions) to different combinations of breaker switches.
 
 ## Actions
 There are a number of actions—some beneficial, some detrimental—that can be triggered by interacting with the Breaker Box. The Breaker Box has 5 switches and each individual combination of switches will trigger a different action.
