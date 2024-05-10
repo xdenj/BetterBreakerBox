@@ -1,6 +1,7 @@
 ﻿using BetterBreakerBox.Configs;
 using GameNetcodeStuff;
 using System;
+using System.Linq;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -13,7 +14,9 @@ namespace BetterBreakerBox.Behaviours
         internal float leaveShipTimer = Math.Clamp(BetterBreakerBoxConfig.shipLeaveTimer.Value, 0f, float.MaxValue);
         internal float disarmTurretsTimer = Math.Clamp(BetterBreakerBoxConfig.disarmTurretsTimer.Value, 0f, float.MaxValue);
         internal float berserkTurretsTimer = Math.Clamp(BetterBreakerBoxConfig.berserkTurretsTimer.Value, 0f, float.MaxValue);
-        internal bool timerStarted = false;
+        internal bool leaveShipTimerStarted = false;
+        internal bool disarmTurretsTimerStarted = false;
+        internal bool berserkTurretsTimerStarted = false;
         internal float startTime = 0f;
         internal TimeOfDay timeOfDay;
 
@@ -131,23 +134,79 @@ namespace BetterBreakerBox.Behaviours
         }
 
         [ClientRpc]
-        public void ZapClientRpc(int damage)
+        public void ZapClientRpc()
         {
-            if (!BetterBreakerBox.LocalPlayerTriggered) return;
-            BetterBreakerBox.logger.LogDebug("Zapping local player");
             PlayerControllerB localPlayer = GameNetworkManager.Instance.localPlayerController;
+            if (BetterBreakerBox.LocalPlayerTriggered)
+            {
+                ZapRemotePlayerServerRpc((int)localPlayer.playerClientId);
+            }
+        }
 
+        [ClientRpc]
+        public void ZapDamageClientRpc(int playerID, int damage)
+        {
+            PlayerControllerB localPlayer = GameNetworkManager.Instance.localPlayerController;
+            if (playerID != (int)localPlayer.playerClientId) return; //only zap the affected player
             HUDManager.Instance.ShakeCamera(ScreenShakeType.Big);
-            localPlayer.DamagePlayer(damage, false);
+            localPlayer.DamagePlayer(damageNumber: damage, causeOfDeath: CauseOfDeath.Electrocution);
             localPlayer.beamUpParticle.Play();
             var charger = FindObjectOfType<ItemCharger>();
             localPlayer.statusEffectAudio.PlayOneShot(charger.zapAudio.clip);
         }
 
         [ClientRpc]
+        public void ZapEffectsClientRpc(int playerID)
+        {
+            PlayerControllerB localPlayer = GameNetworkManager.Instance.localPlayerController;
+            var zappedPlayer = RoundManager.Instance.playersManager.allPlayerScripts.Where(p => (int)p.playerClientId == playerID ).FirstOrDefault();
+            if (zappedPlayer != null)
+            {
+                if (zappedPlayer.playerClientId == localPlayer.playerClientId) return;
+                zappedPlayer.beamUpParticle.Play();
+                zappedPlayer.statusEffectAudio.PlayOneShot(FindObjectOfType<ItemCharger>().zapAudio.clip);
+            }
+        }
+
+        [ClientRpc]
+        public void ChargeEnableClientRpc()
+        {
+            if (BetterBreakerBox.breakerBoxInstance.GetComponent<ChargingManager>() == null)
+            {
+                BetterBreakerBox.breakerBoxInstance.gameObject.AddComponent<ChargingManager>();
+                PlayerControllerB localPlayer = GameNetworkManager.Instance.localPlayerController;
+                var unlockables = StartOfRound.Instance.unlockablesList.unlockables;
+                var teleporterPrefab = unlockables.Find(u => u.unlockableName == "Teleporter").prefabObject;
+                var teleporter = teleporterPrefab.GetComponent<ShipTeleporter>();
+                localPlayer.statusEffectAudio.PlayOneShot(teleporter.buttonPressSFX);
+            }
+            else
+            {
+#if DEBUG
+                Instance.DisplayActionMessageClientRpc("Information", "Charging is already enabled.", false);
+#endif
+            }
+        }
+
+        [ClientRpc]
+        public void ChargeDisableClientRpc()
+        {
+            if (BetterBreakerBox.breakerBoxInstance.GetComponent<ChargingManager>() != null)
+            {
+                Destroy(BetterBreakerBox.breakerBoxInstance.GetComponent<ChargingManager>());
+            }
+        }
+
+        [ClientRpc]
         public void PrepareCommandClientRpc()
         {
             BetterBreakerBox.Instance.PrepareCommand(hintPrice.Value);
+        }
+
+        [ClientRpc]
+        public void ToggleBreakerBoxHumClientRpc(bool on)
+        {
+            BetterBreakerBox.ToggleBreakerBoxHum(on);
         }
 
         // RPC to increment the terminalOutputIndex
@@ -195,6 +254,24 @@ namespace BetterBreakerBox.Behaviours
             PrepareCommandClientRpc();
         }
 
+        [ServerRpc(RequireOwnership = false)]
+        public void ZapRemotePlayerServerRpc(int playerID)
+        {
+            ZapEffectsClientRpc(playerID);
+            ZapDamageClientRpc(playerID, Math.Clamp(BetterBreakerBoxConfig.zapDamage.Value, 0, int.MaxValue));
+            if (BetterBreakerBoxConfig.enableChainZap.Value)
+            {
+                var zappedPlayerPosition = RoundManager.Instance.playersManager.allPlayerScripts.Where(p => (int)p.playerClientId == playerID).FirstOrDefault().transform.position;
+                var playersInZapRange = RoundManager.Instance.playersManager.allPlayerScripts.Where(p => (int)p.playerClientId != playerID && Vector3.Distance(p.transform.position, zappedPlayerPosition) < 5f);
+                foreach (var playerInZapRange in playersInZapRange)
+                {
+                    BetterBreakerBox.logger.LogInfo($"Chain zapping player {playerInZapRange.playerClientId} in range of player {playerID}");
+                    ZapEffectsClientRpc((int)playerInZapRange.playerClientId);
+                    ZapDamageClientRpc((int)playerInZapRange.playerClientId, Math.Clamp(BetterBreakerBoxConfig.zapDamage.Value, 0, int.MaxValue));
+                }
+            }
+        }
+
         void Update()
         {
             if (!BetterBreakerBox.isHost) return; //only the host should be able to trigger actions
@@ -207,11 +284,12 @@ namespace BetterBreakerBox.Behaviours
             float remainingTime = timeOfDay.totalTime - timeOfDay.currentDayTime;
             if (BetterBreakerBox.DisarmTurrets)
             {
-                if (!timerStarted)
+                if (!disarmTurretsTimerStarted)
                 {
                     disarmTurretsTimer = disarmTurretsTimer > remainingTime ? remainingTime : disarmTurretsTimer;
-                    timerStarted = true;
+                    disarmTurretsTimerStarted = true;
                     startTime = disarmTurretsTimer;
+                    BetterBreakerBox.ActionLock = false;
                 }
 #if DEBUG
                 DisplayTimerClientRpc("Turrets re-arming in: ", disarmTurretsTimer, startTime);
@@ -220,9 +298,8 @@ namespace BetterBreakerBox.Behaviours
                 if (disarmTurretsTimer <= 0f)
                 {
                     //Resetting flags and timer after the timer has expired
-                    timerStarted = false;
+                    disarmTurretsTimerStarted = false;
                     BetterBreakerBox.DisarmTurrets = false;
-                    BetterBreakerBox.ActionLock = false;
                     disarmTurretsTimer = BetterBreakerBoxConfig.disarmTurretsTimer.Value;
 #if DEBUG
                     DestroyTimerObjectClientRpc();
@@ -234,11 +311,12 @@ namespace BetterBreakerBox.Behaviours
 
             if (BetterBreakerBox.BerserkTurrets)
             {
-                if (!timerStarted)
+                if (!berserkTurretsTimerStarted)
                 {
                     berserkTurretsTimer = berserkTurretsTimer > remainingTime ? remainingTime : berserkTurretsTimer;
                     startTime = berserkTurretsTimer;
-                    timerStarted = true;
+                    berserkTurretsTimerStarted = true;
+                    BetterBreakerBox.ActionLock = false;
                 }
 #if DEBUG
                 DisplayTimerClientRpc("Turrets exiting Berserk mode in: ", berserkTurretsTimer, startTime);
@@ -246,9 +324,9 @@ namespace BetterBreakerBox.Behaviours
                 berserkTurretsTimer -= Time.deltaTime;
                 if (berserkTurretsTimer <= 0f)
                 {
-                    timerStarted = false;
+                    berserkTurretsTimerStarted = false;
                     BetterBreakerBox.BerserkTurrets = false;
-                    BetterBreakerBox.ActionLock = false;
+
                     berserkTurretsTimer = BetterBreakerBoxConfig.berserkTurretsTimer.Value;
 #if DEBUG
                     DestroyTimerObjectClientRpc();
@@ -260,22 +338,25 @@ namespace BetterBreakerBox.Behaviours
 
             if (BetterBreakerBox.LeaveShip)
             {
-                if (!timerStarted)
+                if (!leaveShipTimerStarted)
                 {
                     leaveShipTimer = leaveShipTimer > remainingTime ? remainingTime : leaveShipTimer;
-                    timerStarted = true;
+                    leaveShipTimerStarted = true;
                     startTime = leaveShipTimer;
+                    BetterBreakerBox.ActionLock = false;
                 }
                 DisplayTimerClientRpc("Ship departs in: ", leaveShipTimer, startTime);
                 leaveShipTimer -= Time.deltaTime;
                 if (leaveShipTimer <= 0f)  // Move this condition up to catch when the timer first goes zero or negative
                 {
-                    timerStarted = false;
+                    leaveShipTimerStarted = false;
                     BetterBreakerBox.LeaveShip = false;
-                    BetterBreakerBox.ActionLock = false;
                     leaveShipTimer = BetterBreakerBoxConfig.shipLeaveTimer.Value;
                     StartOfRound.Instance.ShipLeave();
                     DestroyTimerObjectClientRpc();
+                }
+                else if (leaveShipTimer <= 3f)
+                {
                     DisplayActionMessageClientRpc("Emergency evacuation!", "The Company has deemed this operation too dangerous. Autopilot Ship is departing ahead of schedule!", true);
                 }
                 return;

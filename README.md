@@ -1,11 +1,11 @@
----
+﻿---
 ![BetterBreakerBox](https://i.imgur.com/29SBFvE.png)
 ---
 
 This mod adds new functionality to the Breaker Box by assigning actions to different combinations of breaker switches.
-
+> **⚠️ All players, host and clients, need to have the mod installed in order to use it. ⚠️**
 ## Actions
-There are a number of actions�some beneficial, some detrimental�that can be triggered by interacting with the Breaker Box. The Breaker Box has 5 switches and each individual combination of switches will trigger a different action.\
+There are a number of actions—some beneficial, some detrimental—that can be triggered by interacting with the Breaker Box. The Breaker Box has 5 switches and each individual combination of switches will trigger a different action.\
 Actions are assigned to each combination of switches at random at the beginning of a period (either a new round or a new day) based on configurable weights, and are persistent throughout the period, so you can learn the combinations and their effects as you progress through the game.
 
 ### Available actions:
@@ -25,6 +25,7 @@ The command can retrieve anywhere from 1 to 4 entries per period.
 
 ## Configuration
 There are a number of configuration options available for this mod. The actions get assigned to the switch combinations based on a weight system, so you can adjust the likelihood of each action being assigned to a combination of switches.
+> **ℹ️ The host's configuration will be used for the game.**
 
 <details>
 <summary>Weights</summary>
@@ -41,11 +42,12 @@ The timer option of certain actions can be used to set the duration of the actio
 <details>
 <summary>Miscellaneous</summary>
 
-- ensureActions: If true, the mod will ensure that every action with a weight greater than 0 is assigned to at least one combination of switches. The remaining combinations of switches will be assigned to actions based on their weights.
-
-- zapDamage: The amount of damage the player takes when they trigger the zap action.
-- hintPrice: The price of the `breakerbox` command in the terminal.
-- lockDoorsOnEmp: Whether electronic doors should be locked when the EMP action is triggered.
+- **resetAfterDay:** If true, the game will re-roll assigned actions to the Switch combination after each day, instead of at the start of a new round
+- **ensureAction:** If true, the mod will ensure that every action with a weight greater than 0 is assigned to at least one combination of switches. The remaining combinations of switches will be assigned to actions based on their weights.
+- **zapDamage:** The amount of damage the player takes when they trigger the zap action.
+- **hintPrice:** The price of the `breakerbox` command in the terminal.
+- **lockDoorsOnEmp:** If true, all automatic doors will be locked when the EMP action is triggered.
+- **enableChainZap:** If true, the Zap action will chain to other players in the vicinity of the player that triggered the action.
 </details>
 
 ## Future

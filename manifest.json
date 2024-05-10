@@ -2,7 +2,7 @@
   "name": "BetterBreakerBox",
   "version_number": "0.0.1",
   "website_url": "https://github.com/xdenj/BetterBreakerBox/",
-  "description": "Overhaul of the Breaker Box in Lethal Company",
+  "description": "Adds new functionality to Lethal Company's Breaker Box",
   "dependencies": [
     "BepInEx-BepInExPack-5.4.2100",
     "NotAtomicBomb-TerminalApi-1.5.4",

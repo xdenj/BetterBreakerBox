@@ -9,7 +9,8 @@ namespace BetterBreakerBox.Behaviours
         void Start()
         {
             GameObject charger = Instantiate(GameObject.CreatePrimitive(PrimitiveType.Cube), transform.position, Quaternion.Euler(Vector3.zero), transform);
-            charger.transform.localScale = new Vector3(1f, 1f, 1f);
+            charger.transform.localScale = new Vector3(1f, 2f, 1f);
+            charger.transform.localPosition = new Vector3(0f, 0.5f, 0f);
             charger.tag = nameof(InteractTrigger);
             charger.layer = LayerMask.NameToLayer("Props");
             charger.name = "Charger";

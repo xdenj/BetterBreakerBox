@@ -1,4 +1,6 @@
-﻿using HarmonyLib;
+﻿using GameNetcodeStuff;
+using HarmonyLib;
+using UnityEngine;
 
 namespace BetterBreakerBox.Patches
 {
@@ -15,12 +17,17 @@ namespace BetterBreakerBox.Patches
             BetterBreakerBox.logger.LogDebug("Number of levers turned off:  " + __instance.leversSwitchedOff);
             BetterBreakerBox.logger.LogDebug("Current lever positions: ");
             BetterBreakerBox.SwitchesTurnedOn = "";
+            PlayerControllerB localPlayer = GameNetworkManager.Instance.localPlayerController;
+
             for (int i = 0; i < __instance.breakerSwitches.Length; i++)
             {
                 bool state = __instance.breakerSwitches[i].GetBool("turnedLeft");
                 // "turnedleft" is the state of the breaker switch. turnedLeft = false means switch is turned off, turnedleft = true means switch is turned on
 
-                if (__instance.breakerSwitches[i].gameObject.GetComponent<AnimatedObjectTrigger>().localPlayerTriggered && (BetterBreakerBox.SwitchStates[i] != state)) //if state has changed AND trigger was local player
+                InteractTrigger localPlayerInteractedWith = localPlayer.hoveringOverTrigger;
+                InteractTrigger switchInteractedWith = __instance.breakerSwitches[i].gameObject.GetComponent<InteractTrigger>();
+
+                if ((localPlayerInteractedWith == switchInteractedWith) && (BetterBreakerBox.SwitchStates[i] != state)) //if state has changed AND trigger was local player
                 {
                     BetterBreakerBox.logger.LogDebug($"Switch {i + 1} was triggered by the local player");
                     BetterBreakerBox.LocalPlayerTriggered = true;

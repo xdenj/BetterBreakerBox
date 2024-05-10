@@ -193,6 +193,7 @@ namespace BetterBreakerBox
                     if (hasSufficientCredits)
                     {
                         manager.SyncGroupCredits(terminal.groupCredits - price);
+                        terminal.PlayTerminalAudioServerRpc(0);
                         manager.SethasBoughtThisPeriod(true);
                         limit = limit + nextLimit;
                         manager.SetTerminalOutputIndex(limit);
@@ -216,10 +217,12 @@ namespace BetterBreakerBox
                 if (hasBoughtThisPeriod)
                 {
                     output = terminalHasBought + output;
+                    terminal.PlayTerminalAudioServerRpc(2);
                 }
                 else if (!hasSufficientCredits)
                 {
                     output = output + terminalInsufficientCredits;
+                    terminal.PlayTerminalAudioServerRpc(2);
                 }
 
             }
@@ -603,21 +606,24 @@ namespace BetterBreakerBox
             if (isFacilityPowered)
             {
                 RoundManager.Instance.PowerSwitchOffClientRpc();
-                breakerBoxInstance.breakerBoxHum.Stop();
+                BetterBreakerBoxManager.Instance.ToggleBreakerBoxHumClientRpc(false);
+#if DEBUG
                 if (BetterBreakerBoxManager.Instance is { } manager)
                 {
                     manager.DisplayActionMessageClientRpc("Warning", "Facility power has been turned off.", true);
                 }
+#endif
             }
             else
             {
                 RoundManager.Instance.PowerSwitchOnClientRpc();
-                breakerBoxInstance.breakerBoxHum.Play();
+                BetterBreakerBoxManager.Instance.ToggleBreakerBoxHumClientRpc(true);
+#if DEBUG
                 if (BetterBreakerBoxManager.Instance is { } manager)
                 {
                     manager.DisplayActionMessageClientRpc("Information", "Facility power has been turned on.", false);
                 }
-
+#endif
             }
             isFacilityPowered = !isFacilityPowered;
             //FindObjectOfType<BreakerBox>().isPowerOn = !isFacilityPowered;
@@ -628,28 +634,14 @@ namespace BetterBreakerBox
         public void ChargeEnable()
         {
             ResetActions();
-            if (breakerBoxInstance.GetComponent<ChargingManager>() == null)
-            {
-                breakerBoxInstance.gameObject.AddComponent<ChargingManager>();
-                PlayerControllerB localPlayer = GameNetworkManager.Instance.localPlayerController;
-                var unlockables = StartOfRound.Instance.unlockablesList.unlockables;
-                var teleporterPrefab = unlockables.Find(u => u.unlockableName == "Teleporter").prefabObject;
-                var teleporter = teleporterPrefab.GetComponent<ShipTeleporter>();
-                localPlayer.statusEffectAudio.PlayOneShot(teleporter.buttonPressSFX);
-            }
-            else
-            {
-#if DEBUG
-                BetterBreakerBoxManager.Instance.DisplayActionMessageClientRpc("Information", "Charging is already enabled.", false);
-#endif
-            }
+            BetterBreakerBoxManager.Instance.ChargeEnableClientRpc();
             ActionLock = false;
         }
 
         public static void Zap()
         {
             ResetActions();
-            BetterBreakerBoxManager.Instance.ZapClientRpc(Math.Clamp(BetterBreakerBoxConfig.zapDamage.Value, 0, 100));
+            BetterBreakerBoxManager.Instance.ZapClientRpc();
             ActionLock = false;
         }
 
@@ -695,7 +687,7 @@ namespace BetterBreakerBox
             RoundManager.Instance.PowerSwitchOffClientRpc();
             RoundManager.Instance.powerOffPermanently = true;
             breakerBoxInstance.isPowerOn = false;
-            breakerBoxInstance.breakerBoxHum.Stop();
+            BetterBreakerBoxManager.Instance.ToggleBreakerBoxHumClientRpc(false);
             StartOfRound.Instance.PowerSurgeShip();
             PlayerControllerB localPlayer = GameNetworkManager.Instance.localPlayerController;
             var unlockables = StartOfRound.Instance.unlockablesList.unlockables;
@@ -735,10 +727,7 @@ namespace BetterBreakerBox
             }
 
             //diable charging
-            if (breakerBoxInstance.GetComponent<ChargingManager>() != null)
-            {
-                Destroy(breakerBoxInstance.GetComponent<ChargingManager>());
-            }
+            BetterBreakerBoxManager.Instance.ChargeDisableClientRpc();
 
             ActionLock = false;
         }
@@ -778,6 +767,21 @@ namespace BetterBreakerBox
                 GameObject.Destroy(timerObject);
                 timerObject = null;
                 timerTextMesh = null;
+            }
+        }
+
+        public static void ToggleBreakerBoxHum(bool on)
+        {
+            if (breakerBoxInstance != null)
+            {
+                if (on)
+                {
+                    breakerBoxInstance.breakerBoxHum.Play();
+                }
+                else
+                {
+                    breakerBoxInstance.breakerBoxHum.Stop();
+                }
             }
         }
     }

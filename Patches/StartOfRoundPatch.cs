@@ -38,7 +38,19 @@ namespace BetterBreakerBox.Patches
                                 BetterBreakerBoxManager.Instance?.DisplayActionMessageClientRpc(actionDef.HeaderText, actionDef.BodyText, actionDef.IsWarning);
                             }
                             // Now, invoke the action
-                            actionDef.Action.Invoke();
+                            if((BetterBreakerBox.DisarmTurrets && actionDef.Action.Method.Name == "TurretsDisarm") || (BetterBreakerBox.BerserkTurrets && actionDef.Action.Method.Name == "TurretsBerserk") || (BetterBreakerBox.LeaveShip && actionDef.Action.Method.Name == "ShipLeave"))
+                            {
+                                //nothing
+                            }
+                            else
+                            {
+                                if (actionDef.Action.Method.Name != "DoNothing")
+                                {
+                                    BetterBreakerBox.breakerBoxInstance.thisAudioSource.PlayOneShot(RoundManager.Instance.PressButtonSFX1);
+                                }
+                                actionDef.Action.Invoke();
+                                BetterBreakerBox.LocalPlayerTriggered = false; //reset the flag
+                            }
                         }
                     }
                     //keep track of current state of the switches
