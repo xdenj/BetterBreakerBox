@@ -21,7 +21,8 @@ Actions are assigned to each combination of switches at random at the beginning 
 ## Command
 There is a new command available in the ship's terminal: `breakerbox`\
 This command will retrieve a number of entries from the Facility's handbook, each entry containing an action and the combinations of switches that trigger it.\
-The command can retrieve anywhere from 1 to 4 entries per period.
+The command can retrieve anywhere from 1 to 4 entries per period (either per round or per day, depending on the configuration).\
+Once the command has been used during a period, it can be used again to review the entries at no additional cost.
 
 ## Configuration
 There are a number of configuration options available for this mod. The actions get assigned to the switch combinations based on a weight system, so you can adjust the likelihood of each action being assigned to a combination of switches.
