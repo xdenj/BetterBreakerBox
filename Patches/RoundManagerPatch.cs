@@ -17,25 +17,27 @@ namespace BetterBreakerBox.Patches
         {
             BetterBreakerBox.hasRandomizedActions = false;
             BetterBreakerBox.isHost = GameNetworkManager.Instance.isHostingGame;
+            if (__instance.IsOwner)
+            {
+                if (BetterBreakerBoxManager.Instance != null)
+                {
+                    return;
+                }
+                try
+                {
+                    var BetterBreakerBoxManager = Object.Instantiate(BetterBreakerBox.BetterBreakerBoxManagerPrefab, __instance.transform);
+                    BetterBreakerBoxManager.hideFlags = HideFlags.None;
+                    BetterBreakerBoxManager.GetComponent<NetworkObject>().Spawn();
+                    BetterBreakerBox.logger.LogDebug("Spawned BetterBreakerBoxManager");
+                }
+                catch (Exception e)
+                {
+                    BetterBreakerBox.logger.LogError($"Failed to spawn BetterBreakerBoxManager:\n{e}");
+                }
+            }
             if (!BetterBreakerBox.isHost)
             {
-                BetterBreakerBoxManager.Instance.PrepareCommandServerRpc();
-            }
-            if (!__instance.IsOwner) return;
-            if (BetterBreakerBoxManager.Instance != null)
-            {
-                return;
-            }
-            try
-            {
-                var BetterBreakerBoxManager = Object.Instantiate(BetterBreakerBox.BetterBreakerBoxManagerPrefab, __instance.transform);
-                BetterBreakerBoxManager.hideFlags = HideFlags.None;
-                BetterBreakerBoxManager.GetComponent<NetworkObject>().Spawn();
-                BetterBreakerBox.logger.LogDebug("Spawned BetterBreakerBoxManager");
-            }
-            catch (Exception e)
-            {
-                BetterBreakerBox.logger.LogError($"Failed to spawn BetterBreakerBoxManager:\n{e}");
+                BetterBreakerBox.Instance.PrepareCommand(BetterBreakerBoxManager.Instance.hintPrice.Value);
             }
         }
 
@@ -52,7 +54,7 @@ namespace BetterBreakerBox.Patches
                 BetterBreakerBox.Instance.PrepareTerminalHints();
 
                 BetterBreakerBox.UpdateHintPrice(Math.Clamp(BetterBreakerBoxConfig.hintPrice.Value, 0, Int32.MaxValue));
-                BetterBreakerBoxManager.Instance.PrepareCommandClientRpc();
+                BetterBreakerBox.Instance.PrepareCommand(BetterBreakerBoxManager.Instance.hintPrice.Value);
                 BetterBreakerBox.hasRandomizedActions = true;
                 BetterBreakerBox.logger.LogDebug($"Randomized actions at beginning of {(BetterBreakerBoxConfig.resetAfterDay.Value ? "day" : "round")}");
 

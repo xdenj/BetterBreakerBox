@@ -158,8 +158,10 @@ namespace BetterBreakerBox
 
         internal void PrepareCommand(int price)
         {
-            AddCommand("breakerbox", new CommandInfo { Title = "breakerbox", Category = "other", Description = $"Retrieve entries of the Facility's Handbook [{Math.Clamp(price, 0, Int32.MaxValue)} credits]", DisplayTextSupplier = OnBreakerBoxCommand });
-
+            if (GetKeyword("breakerbox") == null)
+            {
+                AddCommand("breakerbox", new CommandInfo { Title = "breakerbox", Category = "other", Description = $"Retrieve entries of the Facility's Handbook [{Math.Clamp(price, 0, Int32.MaxValue)} credits]", DisplayTextSupplier = OnBreakerBoxCommand });
+            }
         }
 
         public string OnBreakerBoxCommand()
@@ -173,7 +175,8 @@ namespace BetterBreakerBox
                 "Breaker Box:\n" +
                 "Initial inspection of the Facility's wiring has revealed that the previous electrician got a bit...distracted.\n" +
                 "The breaker box is a mess, and the switches are not labeled. In their stead the Company has decided to promote you to Electrician Specialist!!! We expect you to see to it that the breaker box is fully functional and in pristine condition.\n" +
-                "We have graciously supplied you with notes from the previous electrician. We have good faith that you won't let The Company down like the previous disappointment. You wouldn't want us to instate our disciplinary measures.\n\n";
+                "We have graciously supplied you with notes from the previous electrician. We have good faith that you won't let The Company down like the previous disappointment. You wouldn't want us to instate our disciplinary measures.\n" +
+                "<color=white>Switch position → = 0, Switch position ← = 1</color>\n\n";
 
 
             if (BetterBreakerBoxManager.Instance is { } manager)

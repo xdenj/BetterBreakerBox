@@ -54,4 +54,4 @@ The timer option of certain actions can be used to set the duration of the actio
 ## Future
 This is only a very early version of the mod and there are many more actions we want to add in the future. Some of the actions we are considering include:\
 Disarming mines; disabling mine sounds and lights and potentially increasing their radius; a lockdown event in which the entrance to the facility will be locked and players will have to escape through the fire exit; disarming Spike Traps; shortening interval of Spike Traps; integration with other mods (like [MeltdownChance](https://thunderstore.io/c/lethal-company/p/den/Meltdown_Chance/) and weather-related mods)\
-If you encounter any bugs (which is very likely), or if you have any suggestions for new actions, features, and improvements, please let us know on the mod's Discord thread.
+If you encounter any bugs (which is very likely), or if you have any suggestions for new actions, features, and improvements, please let us know on the mod's [Discord thread](https://discord.com/channels/1168655651455639582/1238561095585894460).

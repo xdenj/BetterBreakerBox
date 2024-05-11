@@ -294,7 +294,7 @@ namespace BetterBreakerBox.Behaviours
 #if DEBUG
                 DisplayTimerClientRpc("Turrets re-arming in: ", disarmTurretsTimer, startTime);
 #endif
-                disarmTurretsTimer -= Time.deltaTime; //decrement timer
+                disarmTurretsTimer -= (Time.deltaTime * timeOfDay.globalTimeSpeedMultiplier);
                 if (disarmTurretsTimer <= 0f)
                 {
                     //Resetting flags and timer after the timer has expired
@@ -321,7 +321,7 @@ namespace BetterBreakerBox.Behaviours
 #if DEBUG
                 DisplayTimerClientRpc("Turrets exiting Berserk mode in: ", berserkTurretsTimer, startTime);
 #endif
-                berserkTurretsTimer -= Time.deltaTime;
+                berserkTurretsTimer -= (Time.deltaTime * timeOfDay.globalTimeSpeedMultiplier);
                 if (berserkTurretsTimer <= 0f)
                 {
                     berserkTurretsTimerStarted = false;
@@ -346,18 +346,15 @@ namespace BetterBreakerBox.Behaviours
                     BetterBreakerBox.ActionLock = false;
                 }
                 DisplayTimerClientRpc("Ship departs in: ", leaveShipTimer, startTime);
-                leaveShipTimer -= Time.deltaTime;
+                leaveShipTimer -= (Time.deltaTime * timeOfDay.globalTimeSpeedMultiplier);
                 if (leaveShipTimer <= 0f)  // Move this condition up to catch when the timer first goes zero or negative
                 {
                     leaveShipTimerStarted = false;
                     BetterBreakerBox.LeaveShip = false;
                     leaveShipTimer = BetterBreakerBoxConfig.shipLeaveTimer.Value;
+                    DisplayActionMessageClientRpc("Emergency evacuation!", "The Company has deemed this operation too dangerous. Autopilot Ship is departing ahead of schedule!", true);
                     StartOfRound.Instance.ShipLeave();
                     DestroyTimerObjectClientRpc();
-                }
-                else if (leaveShipTimer <= 3f)
-                {
-                    DisplayActionMessageClientRpc("Emergency evacuation!", "The Company has deemed this operation too dangerous. Autopilot Ship is departing ahead of schedule!", true);
                 }
                 return;
             }
