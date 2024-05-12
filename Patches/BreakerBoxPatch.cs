@@ -7,6 +7,9 @@ namespace BetterBreakerBox.Patches
     [HarmonyPatch(typeof(BreakerBox))]
     internal class BreakerBoxPatch
     {
+        internal static GameObject stickyNotePrefab;
+        internal static GameObject stickyNoteInstance;
+
         [HarmonyPatch(nameof(BreakerBox.SwitchBreaker))]
         [HarmonyPrefix]
         static bool SwitchBreakerPostfix(BreakerBox __instance)
@@ -47,8 +50,22 @@ namespace BetterBreakerBox.Patches
         static void StartPatch(BreakerBox __instance)
         {
             BetterBreakerBox.breakerBoxInstance = __instance;
+            stickyNotePrefab = BetterBreakerBox.BetterBreakerBoxAssets.LoadAsset<GameObject>("assets/prefabinstance/stickynoteitem.prefab");
+            Transform powerBoxDoorTransform = __instance.transform.Find("Mesh/PowerBoxDoor");
+            try
+            {
+                GameObject stickyNoteInstance = GameObject.Instantiate(stickyNotePrefab, powerBoxDoorTransform);
+                stickyNoteInstance.transform.position -= stickyNoteInstance.transform.right * 0.25f;
+                stickyNoteInstance.transform.position -= stickyNoteInstance.transform.up * 0.25f;
+                stickyNoteInstance.transform.position -= stickyNoteInstance.transform.forward * 0.025f;
+                stickyNoteInstance.transform.Rotate(0, 180, 0);
+            }
 
-            if (!BetterBreakerBox.isHost)
+            catch (System.Exception e)
+            {
+                BetterBreakerBox.logger.LogError($"Failed to spawn sticky note:\n{e}");
+            }
+                if (!BetterBreakerBox.isHost)
             {
                 return; //only the host should randomize the switches
             }

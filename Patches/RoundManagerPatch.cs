@@ -1,7 +1,9 @@
 ﻿using BetterBreakerBox.Behaviours;
 using BetterBreakerBox.Configs;
+using GameNetcodeStuff;
 using HarmonyLib;
 using System;
+using System.Linq;
 using Unity.Netcode;
 using UnityEngine;
 using Object = UnityEngine.Object;
@@ -57,6 +59,7 @@ namespace BetterBreakerBox.Patches
                 BetterBreakerBox.Instance.PrepareCommand(BetterBreakerBoxManager.Instance.hintPrice.Value);
                 BetterBreakerBox.hasRandomizedActions = true;
                 BetterBreakerBox.logger.LogDebug($"Randomized actions at beginning of {(BetterBreakerBoxConfig.resetAfterDay.Value ? "day" : "round")}");
+
 
             }
             else if (TimeOfDay.Instance.daysUntilDeadline <= 0)

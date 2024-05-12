@@ -6,7 +6,7 @@
     <AssemblyName>den.betterbreakerbox</AssemblyName>
     <Product>BetterBreakerBox</Product>
     <Authors>den</Authors>
-    <Version>0.0.2</Version>
+    <Version>0.0.3</Version>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
@@ -83,6 +83,7 @@
     <ContentToPack Include="$(ProjectDir)CHANGELOG.md" />
     <ContentToPack Include="$(ProjectDir)manifest.json" />
     <ContentToPack Include="$(ProjectDir)icon.png" />
+    <ContentToPack Include="$(ProjectDir)betterbreakerboxassets" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Release\" />

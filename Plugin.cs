@@ -17,6 +17,7 @@ using UnityEngine;
 using GameNetcodeStuff;
 using TerminalApi.Classes;
 using static TerminalApi.TerminalApi;
+using System.IO;
 
 
 namespace BetterBreakerBox
@@ -27,6 +28,8 @@ namespace BetterBreakerBox
     public class BetterBreakerBox : BaseUnityPlugin
     {
         internal static BetterBreakerBox? Instance;
+
+        public static AssetBundle BetterBreakerBoxAssets;
         public static new BetterBreakerBoxConfig MyConfig { get; internal set; }
         private readonly Harmony harmony = new(MyPluginInfo.PLUGIN_GUID);
         internal static ManualLogSource logger = BepInEx.Logging.Logger.CreateLogSource(MyPluginInfo.PLUGIN_GUID);
@@ -41,6 +44,7 @@ namespace BetterBreakerBox
 
         private static GameObject timerObject;
         private static TextMeshProUGUI timerTextMesh;
+
 
 
         //flags and other stuff
@@ -99,6 +103,14 @@ namespace BetterBreakerBox
             PopulateActions();
             NetcodePatcher();
             InitializePrefabs();
+            string assemblyLocation = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            BetterBreakerBoxAssets = AssetBundle.LoadFromFile(Path.Combine(assemblyLocation, "betterbreakerboxassets"));
+            //string[] assets = BetterBreakerBoxAssets.GetAllAssetNames();
+            //foreach (string asset in assets)
+            //{
+            //    logger.LogDebug($"Loaded asset: {asset}");
+            //}
+
             logger.LogInfo($"{MyPluginInfo.PLUGIN_GUID}-{MyPluginInfo.PLUGIN_VERSION} has been loaded!");
 
         }
@@ -175,8 +187,7 @@ namespace BetterBreakerBox
                 "Breaker Box:\n" +
                 "Initial inspection of the Facility's wiring has revealed that the previous electrician got a bit...distracted.\n" +
                 "The breaker box is a mess, and the switches are not labeled. In their stead the Company has decided to promote you to Electrician Specialist!!! We expect you to see to it that the breaker box is fully functional and in pristine condition.\n" +
-                "We have graciously supplied you with notes from the previous electrician. We have good faith that you won't let The Company down like the previous disappointment. You wouldn't want us to instate our disciplinary measures.\n" +
-                "<color=white>Switch position → = 0, Switch position ← = 1</color>\n\n";
+                "We have graciously supplied you with notes from the previous electrician. We have good faith that you won't let The Company down like the previous disappointment. You wouldn't want us to instate our disciplinary measures.\n\n";
 
 
             if (BetterBreakerBoxManager.Instance is { } manager)
@@ -242,6 +253,11 @@ namespace BetterBreakerBox
             LocalPlayerTriggered = false;
             isBreakerBoxEnabled = true;
             ResetActions();
+            if (BreakerBoxPatch.stickyNoteInstance != null)
+            {
+                Destroy(BreakerBoxPatch.stickyNoteInstance);
+                logger.LogDebug("Destroyed sticky note");
+            }
         }
 
         internal static void ResetNewRound()
