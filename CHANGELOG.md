@@ -1,3 +1,7 @@
+## 0.0.4
+- fixed pulling of the Apparatus not turning off the power to the facility
+- added disabling the Breaker Box after Apparatus is pulled
+
 ## 0.0.3
 - added sticky note to breaker box
 

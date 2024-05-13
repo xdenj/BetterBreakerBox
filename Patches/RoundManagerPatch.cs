@@ -59,8 +59,6 @@ namespace BetterBreakerBox.Patches
                 BetterBreakerBox.Instance.PrepareCommand(BetterBreakerBoxManager.Instance.hintPrice.Value);
                 BetterBreakerBox.hasRandomizedActions = true;
                 BetterBreakerBox.logger.LogDebug($"Randomized actions at beginning of {(BetterBreakerBoxConfig.resetAfterDay.Value ? "day" : "round")}");
-
-
             }
             else if (TimeOfDay.Instance.daysUntilDeadline <= 0)
             {
@@ -72,7 +70,8 @@ namespace BetterBreakerBox.Patches
         [HarmonyPrefix]
         static bool SwitchPowerPatch(RoundManager __instance)
         {
-            return false;
+            BetterBreakerBox.logger.LogDebug("isTriggeredByLungProp: " + BetterBreakerBox.isTriggeredByLungProp);
+            return BetterBreakerBox.isTriggeredByLungProp;
         }
     }
 }

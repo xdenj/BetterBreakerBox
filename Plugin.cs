@@ -60,6 +60,7 @@ namespace BetterBreakerBox
         public static bool isPowerOffAction = false;
         public static bool isBreakerBoxEnabled = true;
         public static bool isFacilityPowered = false;
+        public static bool isTriggeredByLungProp = false;
 
 
         // action flags:
@@ -153,6 +154,7 @@ namespace BetterBreakerBox
             TryPatches(typeof(TurretPatch), "Turret");
             TryPatches(typeof(StartOfRoundPatch), "StartOfRound");
             TryPatches(typeof(PlayerControllerBPatch), "PlayerControllerB");
+            TryPatches(typeof(LungPropPatch), "LungProp");
         }
 
         private void TryPatches(Type patchType, string name)
@@ -252,6 +254,7 @@ namespace BetterBreakerBox
             ActionLock = false;
             LocalPlayerTriggered = false;
             isBreakerBoxEnabled = true;
+            isTriggeredByLungProp = false;
             ResetActions();
             if (BreakerBoxPatch.stickyNoteInstance != null)
             {

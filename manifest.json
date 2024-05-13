@@ -1,6 +1,6 @@
 {
   "name": "BetterBreakerBox",
-  "version_number": "0.0.3",
+  "version_number": "0.0.4",
   "website_url": "https://github.com/xdenj/BetterBreakerBox/",
   "description": "Adds new functionality to Lethal Company's Breaker Box",
   "dependencies": [
