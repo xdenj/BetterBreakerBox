@@ -1,3 +1,6 @@
+## 0.0.5
+- fixed battery-powered devices not draining on client players when EMP is triggered
+
 ## 0.0.4
 - fixed pulling of the Apparatus not turning off the power to the facility
 - added disabling the Breaker Box after Apparatus is pulled

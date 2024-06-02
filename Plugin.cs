@@ -717,15 +717,7 @@ namespace BetterBreakerBox
             var teleporter = teleporterPrefab.GetComponent<ShipTeleporter>();
             localPlayer.statusEffectAudio.PlayOneShot(teleporter.teleporterBeamUpSFX);
 
-            //set charge of all battery powered items to 0
-            GrabbableObject[] grabbableObjects = FindObjectsOfType<GrabbableObject>().Where(obj => obj.itemProperties.requiresBattery).ToArray();
-            if (grabbableObjects.Length > 0)
-            {
-                foreach (GrabbableObject grabbableObject in grabbableObjects)
-                {
-                    grabbableObject.insertedBattery.charge = 0f;
-                }
-            }
+            BetterBreakerBoxManager.Instance.DrainBatteriesClientRpc();
 
             //disable all turrets
             DisarmTurrets = true;
@@ -803,6 +795,18 @@ namespace BetterBreakerBox
                 else
                 {
                     breakerBoxInstance.breakerBoxHum.Stop();
+                }
+            }
+        }
+
+        public static void DrainBatteries()
+        {
+            GrabbableObject[] batteryPoweredItems = FindObjectsOfType<GrabbableObject>().Where(obj => obj.itemProperties.requiresBattery).ToArray();
+            if (batteryPoweredItems.Length > 0)
+            {
+                foreach (GrabbableObject batteryPoweredItem in batteryPoweredItems)
+                {
+                    batteryPoweredItem.insertedBattery.charge = 0f;
                 }
             }
         }

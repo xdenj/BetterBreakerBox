@@ -6,7 +6,7 @@
     <AssemblyName>den.betterbreakerbox</AssemblyName>
     <Product>BetterBreakerBox</Product>
     <Authors>den</Authors>
-    <Version>0.0.4</Version>
+    <Version>0.0.5</Version>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>

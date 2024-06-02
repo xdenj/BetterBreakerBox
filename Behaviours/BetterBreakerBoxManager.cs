@@ -209,6 +209,12 @@ namespace BetterBreakerBox.Behaviours
             BetterBreakerBox.ToggleBreakerBoxHum(on);
         }
 
+        [ClientRpc]
+        public void DrainBatteriesClientRpc()
+        {
+            BetterBreakerBox.DrainBatteries();
+        }
+
         // RPC to increment the terminalOutputIndex
         [ServerRpc(RequireOwnership = false)]
         public void SetTerminalOutputIndexServerRpc(int value)
